@@ -84,7 +84,7 @@ function ProgressRing({ value }: { value: number }) {
 function RecentProjectsCard({ projects, team }: { projects: Project[]; team: TeamMember[] }) {
   const navigate = useNavigate()
   return (
-    <Card className="col-span-2">
+    <Card className="lg:col-span-2">
       <CardTitle
         title="Recent projects"
         subtitle="Your latest active work"

@@ -87,7 +87,7 @@ export function TaskDetail() {
 
   if (!task || !project) {
     return (
-      <div className="p-6 lg:p-10">
+      <div className="p-4 sm:p-6 lg:p-10">
         <EmptyState title="Task not found" description="The task you are looking for does not exist." action={<Button onClick={() => navigate('/tasks')}>Back to tasks</Button>} />
       </div>
     )
@@ -210,8 +210,8 @@ export function TaskDetail() {
   )
 
   return (
-    <div className="min-h-screen bg-canvas p-6 lg:p-10">
-      <div className="mb-6 flex items-center gap-3">
+    <div className="min-h-screen bg-canvas p-4 sm:p-6 lg:p-10">
+      <div className="mb-6 flex flex-wrap items-center gap-3">
         <Button variant="ghost" onClick={() => navigate(-1)} className="px-2">
           <ArrowLeft className="h-4 w-4" />
         </Button>
@@ -407,7 +407,7 @@ export function TaskDetail() {
 
       {activeTab === 'raid' && (
         <Card>
-          <div className="mb-4 flex items-center justify-between">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
             <CardTitle title="RAID Insights" subtitle="AI-detected suggestions from this task" />
             <Button variant="secondary" onClick={runTaskAnalysis}>Analyze task status</Button>
           </div>

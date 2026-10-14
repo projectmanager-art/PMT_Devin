@@ -67,7 +67,7 @@ export function ProjectModal({
       }
     >
       <FormErrorSummary errors={errors} />
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Project name" required error={errors.name}>
           <input className={errors.name ? invalidInputClass : inputClass} aria-invalid={!!errors.name} value={form.name} onChange={(e) => setField('name', e.target.value)} placeholder="e.g. Phoenix Website" />
         </Field>

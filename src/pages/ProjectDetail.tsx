@@ -64,7 +64,7 @@ export function ProjectDetail() {
 
   if (!project) {
     return (
-      <div className="mx-auto w-full max-w-[1500px] px-8 py-8">
+      <div className="mx-auto w-full max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8">
         <EmptyState
           title="Project not found"
           description="This project may have been archived or deleted."
@@ -78,10 +78,10 @@ export function ProjectDetail() {
   const issues = projectRisks.filter((r) => r.category === 'Risk' || r.category === 'Issue')
 
   return (
-    <div className="mx-auto w-full max-w-[1500px] px-8 py-8">
+    <div className="mx-auto w-full max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8">
       <TextButton onClick={() => navigate('/projects')}>← Back to projects</TextButton>
 
-      <div className="mt-4 mb-5 flex items-start justify-between gap-4 rounded-card bg-ink p-6 text-white">
+      <div className="mt-4 mb-5 flex flex-col items-start justify-between gap-4 rounded-card bg-ink p-4 text-white sm:flex-row sm:p-6">
         <div className="flex-1">
           <p className="mb-2 text-[10px] font-semibold uppercase tracking-[1.5px] text-[#aeb3af]">
             {project.client} · {project.type}
@@ -131,7 +131,7 @@ export function ProjectDetail() {
 
       {tab === 'Overview' && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="col-span-2">
+          <Card className="md:col-span-2">
             <CardTitle title="Project details" subtitle="Core information and tracking" />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-[12px]">
               {([
@@ -242,12 +242,12 @@ export function ProjectDetail() {
           <CardTitle title="Project timeline" subtitle="Tasks and milestones over time" />
           <div className="space-y-4">
             {projectTasks.map((task) => (
-              <div key={task.id} className="flex items-center gap-4">
-                <span className="w-40 truncate text-[11px] text-ink">{task.title}</span>
+              <div key={task.id} className="flex items-center gap-3 sm:gap-4">
+                <span className="w-24 shrink-0 truncate text-[11px] text-ink sm:w-40">{task.title}</span>
                 <div className="h-1.5 flex-1 rounded-full bg-[#eeeeeb]">
                   <div className="h-full rounded-full bg-ink" style={{ width: `${task.status === 'Completed' ? 100 : task.status === 'In Progress' ? 60 : 20}%` }} />
                 </div>
-                <span className="w-20 text-right text-[10px] text-muted">{task.due.slice(5)}</span>
+                <span className="w-14 shrink-0 text-right text-[10px] text-muted sm:w-20">{task.due.slice(5)}</span>
               </div>
             ))}
           </div>
@@ -290,7 +290,7 @@ export function ProjectDetail() {
                     <p className="text-[12px] font-semibold text-ink">{member.name}</p>
                     <p className="text-[10px] text-muted">{member.role} · {member.skills}</p>
                   </div>
-                  <div className="w-32">
+                  <div className="w-24 shrink-0 sm:w-32">
                     <div className="mb-1 flex justify-between text-[10px] text-muted">
                       <span>Utilization</span>
                       <b>{Math.round((member.utilized / member.capacity) * 100)}%</b>
@@ -322,7 +322,7 @@ export function ProjectDetail() {
                   <p className="mt-1 font-medium text-ink">{value}</p>
                 </div>
               ))}
-              <div className="col-span-2 rounded-lg border border-line bg-[#fafaf8] p-3">
+              <div className="rounded-lg border border-line bg-[#fafaf8] p-3 md:col-span-2">
                 <p className="text-[10px] uppercase tracking-wider text-muted">Requirements</p>
                 <p className="mt-1 text-[11px] text-ink">{client.requirements}</p>
               </div>

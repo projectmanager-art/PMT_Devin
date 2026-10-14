@@ -137,12 +137,12 @@ export function Topbar({ onLogout, onMenuClick }: { onLogout: () => void; onMenu
         </button>
         <span className="hidden text-[#9a9c9a] sm:inline">Overview</span>
         <span className="hidden text-[#c9cac6] sm:inline">/</span>
-        <span className="font-semibold text-ink">Dashboard</span>
+        <span className="hidden font-semibold text-ink sm:inline">Dashboard</span>
       </div>
 
       <div className="flex items-center gap-2">
         <div className="relative" ref={searchRef}>
-          <div className="flex h-[42px] w-[180px] items-center gap-2.5 rounded-xl border border-line bg-white px-3.5 transition focus-within:border-ink focus-within:ring-2 focus-within:ring-ink/5 sm:w-[280px]">
+          <div className="flex h-[42px] w-[150px] items-center gap-2.5 rounded-xl border border-line bg-white px-3.5 transition focus-within:border-ink focus-within:ring-2 focus-within:ring-ink/5 sm:w-[280px]">
             <Search size={16} className="text-[#9a9c9a]" />
             <input
               value={query}
@@ -155,14 +155,14 @@ export function Topbar({ onLogout, onMenuClick }: { onLogout: () => void; onMenu
               placeholder="Search anything..."
               className="w-full bg-transparent text-[12px] text-ink outline-none placeholder:text-[#b0b3b0]"
             />
-            <div className="flex h-[22px] w-[22px] flex-col items-center justify-center rounded-md border border-[#e6e6e1] bg-[#f9f9f7] text-[9px] text-[#9a9c9a] leading-none">
+            <div className="hidden h-[22px] w-[22px] flex-col items-center justify-center rounded-md border border-[#e6e6e1] bg-[#f9f9f7] text-[9px] text-[#9a9c9a] leading-none sm:flex">
               <Command size={10} />
               <span className="-mt-[1px]">K</span>
             </div>
           </div>
 
           {showResults && query.trim() && (
-            <div className="absolute right-0 top-[50px] w-[320px] rounded-xl border border-line bg-white p-2 shadow-lift">
+            <div className="absolute right-0 top-[50px] w-[320px] max-w-[calc(100vw-1.5rem)] rounded-xl border border-line bg-white p-2 shadow-lift">
               {results.length === 0 ? (
                 <p className="px-3 py-4 text-center text-[11px] text-muted">No results found</p>
               ) : (
@@ -198,7 +198,7 @@ export function Topbar({ onLogout, onMenuClick }: { onLogout: () => void; onMenu
             {alerts.length > 0 && <span className="absolute right-[7px] top-[7px] h-[5px] w-[5px] rounded-full bg-red" />}
           </button>
           {showAlerts && (
-            <div className="absolute right-0 top-[42px] w-[300px] rounded-xl border border-line bg-white p-2 shadow-lift">
+            <div className="absolute right-0 top-[42px] w-[300px] max-w-[calc(100vw-1.5rem)] rounded-xl border border-line bg-white p-2 shadow-lift">
               <p className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted">Notifications</p>
               {alerts.length === 0 ? (
                 <p className="px-3 py-4 text-center text-[11px] text-muted">You're all caught up</p>
@@ -251,7 +251,7 @@ export function Topbar({ onLogout, onMenuClick }: { onLogout: () => void; onMenu
           </button>
 
           {showUserMenu && (
-            <div className="absolute right-0 top-[42px] w-[220px] rounded-xl border border-line bg-white p-2 shadow-lift">
+            <div className="absolute right-0 top-[42px] w-[220px] max-w-[calc(100vw-1.5rem)] rounded-xl border border-line bg-white p-2 shadow-lift">
               <div className="px-3 py-2">
                 <p className="text-[12px] font-semibold text-ink">Sandeep Rana</p>
                 <p className="text-[10px] text-muted">Project Manager</p>

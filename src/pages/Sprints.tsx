@@ -173,7 +173,7 @@ export function Sprints() {
   const StatusBadge = ({ status }: { status: SprintStatus }) => <span className={`rounded-full px-2 py-[2px] text-[10px] font-bold ${statusColor[status]}`}>{status}</span>
 
   return (
-    <div className="mx-auto w-full max-w-[1500px] px-8 py-8">
+    <div className="mx-auto w-full max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8">
       <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p className="mb-2 text-[10px] font-semibold uppercase tracking-[1.5px] text-[#929692]">Sprints</p>
@@ -411,7 +411,8 @@ export function Sprints() {
           </div>
           <div className="mt-5 rounded-lg bg-[#fafaf8] p-4">
             <p className="text-[12px] font-semibold text-ink">Scope Change Log</p>
-            <table className="mt-2 w-full text-[11px]">
+            <div className="overflow-x-auto">
+            <table className="mt-2 w-full min-w-[400px] text-[11px]">
               <thead>
                 <tr className="text-left text-muted">
                   <th className="py-1">Type</th>
@@ -431,6 +432,7 @@ export function Sprints() {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         </Card>
       )}
@@ -449,7 +451,8 @@ export function Sprints() {
       {tab === 'history' && (
         <Card>
           <CardTitle title="Sprint History" />
-          <table className="mt-2 w-full text-[11px]">
+          <div className="overflow-x-auto">
+          <table className="mt-2 w-full min-w-[520px] text-[11px]">
             <thead>
               <tr className="text-left text-muted">
                 <th className="py-2">Sprint</th>
@@ -476,6 +479,7 @@ export function Sprints() {
               })}
             </tbody>
           </table>
+          </div>
         </Card>
       )}
 
@@ -518,8 +522,8 @@ function ProductBacklogList({ open, setOpen, onMoveToSprint }: { open: boolean; 
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex h-[36px] w-[245px] items-center gap-2 rounded-lg border border-line bg-white px-3 text-muted">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex h-[36px] w-full max-w-[245px] items-center gap-2 rounded-lg border border-line bg-white px-3 text-muted">
           <Search size={14} />
           <input placeholder="Search backlog..." className="w-full bg-transparent text-[11px] text-ink outline-none" />
         </div>
@@ -530,7 +534,8 @@ function ProductBacklogList({ open, setOpen, onMoveToSprint }: { open: boolean; 
         {items.length === 0 ? (
           <EmptyState title="No product backlog items" description="Add items or move them from the sprint backlog." action={<Button onClick={() => setOpen(true)}>Add Item</Button>} />
         ) : (
-          <table className="w-full text-[11px]">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[600px] text-[11px]">
             <thead>
               <tr className="text-left text-muted">
                 <th className="py-2">Title</th>
@@ -558,6 +563,7 @@ function ProductBacklogList({ open, setOpen, onMoveToSprint }: { open: boolean; 
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </Card>
       <BacklogModal open={open} onClose={() => setOpen(false)} projects={app.projects} onSubmit={(item) => { sprints.addBacklogItem(item); setOpen(false) }} />
@@ -604,7 +610,8 @@ function SprintBacklog({ sprint, onRemove }: { sprint: Sprint; onRemove: (id: st
       {missingAssignee.length > 0 && <div className="rounded-lg border border-amber/30 bg-[#fef3c7] p-3 text-[12px] text-amber">{missingAssignee.length} tasks are unassigned.</div>}
       <Card>
         <CardTitle title="Sprint Backlog" />
-        <table className="w-full text-[11px]">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[540px] text-[11px]">
           <thead>
             <tr className="text-left text-muted">
               <th className="py-2">Title</th>
@@ -630,6 +637,7 @@ function SprintBacklog({ sprint, onRemove }: { sprint: Sprint; onRemove: (id: st
             ))}
           </tbody>
         </table>
+        </div>
       </Card>
     </div>
   )
@@ -686,7 +694,8 @@ function CapacityTable({ sprint, team, items }: { sprint: Sprint; team: TeamMemb
   return (
     <Card>
       <CardTitle title="Team Capacity" subtitle={`${sprint.workingDays} working days · ${sprint.hoursPerDay}h/day`} />
-      <table className="w-full text-[11px]">
+      <div className="overflow-x-auto">
+      <table className="w-full min-w-[440px] text-[11px]">
         <thead>
           <tr className="text-left text-muted">
             <th className="py-2">Employee</th>
@@ -717,6 +726,7 @@ function CapacityTable({ sprint, team, items }: { sprint: Sprint; team: TeamMemb
           })}
         </tbody>
       </table>
+      </div>
     </Card>
   )
 }
@@ -738,7 +748,8 @@ function BlockersSection({ sprint, open, setOpen, onResolve, onAdd }: { sprint: 
       <Card>
         <CardTitle title="Blockers & Dependencies" />
         {blockers.length === 0 ? <EmptyState title="No blockers" description="Sprint is running smoothly." /> : (
-          <table className="w-full text-[11px]">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[620px] text-[11px]">
             <thead>
               <tr className="text-left text-muted">
                 <th className="py-2">Description</th>
@@ -768,6 +779,7 @@ function BlockersSection({ sprint, open, setOpen, onResolve, onAdd }: { sprint: 
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </Card>
       <BlockerModal open={open} onClose={() => setOpen(false)} sprint={sprint} items={sprints.backlog.filter((b) => b.sprintId === sprint.id)} onAdd={(b) => { onAdd(b); setOpen(false) }} />
@@ -812,7 +824,8 @@ function RetrospectiveSection({ retro, onSave }: { retro?: Retrospective; onSave
           <Button onClick={() => { if (actionText && owner && due) { setActions([...actions, { id: Math.random().toString(36).slice(2, 9), action: actionText, owner, due, priority: 'Medium', status: 'Open' }]); setActionText(''); setOwner(''); setDue('') } }}>Add Action</Button>
         </div>
         {actions.length === 0 ? <p className="text-[12px] text-muted">No actions yet.</p> : (
-          <table className="w-full text-[11px]">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[400px] text-[11px]">
             <thead>
               <tr className="text-left text-muted"><th className="py-2">Action</th><th>Owner</th><th>Due</th><th>Status</th></tr>
             </thead>
@@ -822,6 +835,7 @@ function RetrospectiveSection({ retro, onSave }: { retro?: Retrospective; onSave
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </Card>
@@ -832,7 +846,8 @@ function PerformanceTable({ performance, onCompare }: { performance: any[]; onCo
   return (
     <Card>
       <CardTitle title="Employee Sprint Performance" subtitle="Calculated across delivery, quality, estimation, productivity, reliability and collaboration" />
-      <table className="w-full text-[11px]">
+      <div className="overflow-x-auto">
+      <table className="w-full min-w-[720px] text-[11px]">
         <thead>
           <tr className="text-left text-muted">
             <th className="py-2">Employee</th>
@@ -864,6 +879,7 @@ function PerformanceTable({ performance, onCompare }: { performance: any[]; onCo
           ))}
         </tbody>
       </table>
+      </div>
       <div className="mt-4 rounded-lg bg-[#fafaf8] p-4">
         <p className="text-[12px] font-semibold text-ink">Score Explainability</p>
         {performance.map((p) => (
@@ -916,7 +932,7 @@ function SprintModal({ open, onClose, onSubmit, projects, team }: { open: boolea
         <Field label="End Date" required error={errors.end}><input className={errors.end ? invalidInputClass : inputClass} aria-invalid={!!errors.end} type="date" value={form.end} onChange={(e) => { setForm({ ...form, end: e.target.value }); setErrors({ ...errors, end: '' }) }} /></Field>
         <Field label="Working Days"><input className={inputClass} type="number" value={form.workingDays} onChange={(e) => setForm({ ...form, workingDays: Number(e.target.value) })} /></Field>
         <Field label="Hours/Day"><input className={inputClass} type="number" value={form.hoursPerDay} onChange={(e) => setForm({ ...form, hoursPerDay: Number(e.target.value) })} /></Field>
-        <Field label="Team Members" className="col-span-2">
+        <Field label="Team Members" className="md:col-span-2">
           <select multiple className={`${inputClass} h-24`} value={form.members} onChange={(e) => setForm({ ...form, members: Array.from(e.target.selectedOptions).map((o) => o.value) })}>
             {team.map((t) => <option key={t.name} value={t.name}>{t.name}</option>)}
           </select>

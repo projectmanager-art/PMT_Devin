@@ -7,7 +7,7 @@ export function Settings() {
   const [saved, setSaved] = useState(false)
 
   return (
-    <div className="mx-auto w-full max-w-[900px] px-8 py-8">
+    <div className="mx-auto w-full max-w-[900px] px-4 py-6 sm:px-6 lg:px-8">
       <div className="mb-6">
         <p className="mb-2 text-[10px] font-semibold uppercase tracking-[1.5px] text-[#929692]">Workspace</p>
         <h1 className="font-heading text-[28px] font-semibold tracking-tight text-ink">Settings</h1>
@@ -58,7 +58,7 @@ export function Settings() {
               <option>YYYY-MM-DD</option>
             </select>
           </Field>
-          <div className="col-span-2 flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3 md:col-span-2">
             <Button type="submit">Save preferences</Button>
             {saved && <span className="text-[11px] text-green">Preferences saved</span>}
           </div>

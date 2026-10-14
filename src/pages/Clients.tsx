@@ -60,9 +60,9 @@ function ClientModal({ open, onClose, editing }: { open: boolean; onClose: () =>
         <Field label="Email" error={errors.email}><input className={errors.email ? invalidInputClass : inputClass} aria-invalid={!!errors.email} value={form.email} onChange={(e) => { setForm({ ...form, email: e.target.value }); setErrors((e) => ({ ...e, email: '' })) }} /></Field>
         <Field label="Phone"><input className={inputClass} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></Field>
         <Field label="Website"><input className={inputClass} value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} /></Field>
-        <Field label="Requirements" className="col-span-2"><textarea className={inputClass} rows={2} value={form.requirements} onChange={(e) => setForm({ ...form, requirements: e.target.value })} /></Field>
-        <Field label="Pending approvals" className="col-span-2"><input className={inputClass} value={form.pendingApprovals} onChange={(e) => setForm({ ...form, pendingApprovals: e.target.value })} /></Field>
-        <Field label="Notes" className="col-span-2"><textarea className={inputClass} rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></Field>
+        <Field label="Requirements" className="md:col-span-2"><textarea className={inputClass} rows={2} value={form.requirements} onChange={(e) => setForm({ ...form, requirements: e.target.value })} /></Field>
+        <Field label="Pending approvals" className="md:col-span-2"><input className={inputClass} value={form.pendingApprovals} onChange={(e) => setForm({ ...form, pendingApprovals: e.target.value })} /></Field>
+        <Field label="Notes" className="md:col-span-2"><textarea className={inputClass} rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></Field>
       </div>
     </Modal>
   )
@@ -77,8 +77,8 @@ export function Clients() {
   const filtered = clients.filter((c) => !query || c.name.toLowerCase().includes(query.toLowerCase()) || c.company.toLowerCase().includes(query.toLowerCase()))
 
   return (
-    <div className="mx-auto w-full max-w-[1500px] px-8 py-8">
-      <div className="mb-6 flex items-start justify-between gap-4">
+    <div className="mx-auto w-full max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8">
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="mb-2 text-[10px] font-semibold uppercase tracking-[1.5px] text-[#929692]">People & data</p>
           <h1 className="font-heading text-[28px] font-semibold tracking-tight text-ink">Clients</h1>
@@ -89,7 +89,7 @@ export function Clients() {
         </Button>
       </div>
 
-      <div className="mb-5 flex h-[36px] w-[245px] items-center gap-2 rounded-lg border border-line bg-white px-3 text-muted">
+      <div className="mb-5 flex h-[36px] w-full items-center gap-2 rounded-lg border border-line bg-white px-3 text-muted sm:w-[245px]">
         <Search size={14} />
         <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search clients..." className="w-full bg-transparent text-[11px] text-ink outline-none placeholder:text-[#aaa]" />
       </div>
@@ -97,7 +97,7 @@ export function Clients() {
       {filtered.length === 0 ? (
         <EmptyState title="No clients found" description="Add a client to start managing their projects." />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((client) => {
             const clientProjects = projects.filter((p) => p.client === client.name)
             return (

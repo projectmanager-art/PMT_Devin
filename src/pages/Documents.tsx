@@ -82,7 +82,7 @@ export function DocumentModal({
     >
       <FormErrorSummary errors={errors} />
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <Field label="Document name" required error={errors.name} className="col-span-2">
+        <Field label="Document name" required error={errors.name} className="md:col-span-2">
           <input className={errors.name ? invalidInputClass : inputClass} aria-invalid={!!errors.name} value={form.name} onChange={(e) => { setForm({ ...form, name: e.target.value }); setErrors((current) => ({ ...current, name: '' })) }} placeholder="Brief, guidelines, contract..." />
         </Field>
         <Field label="Project" required error={errors.projectId}>
@@ -96,7 +96,7 @@ export function DocumentModal({
             {(['Draft', 'In review', 'Shared'] as DocumentItem['status'][]).map((status) => <option key={status}>{status}</option>)}
           </select>
         </Field>
-        <Field label="File attachment" required error={errors.file} className="col-span-2">
+        <Field label="File attachment" required error={errors.file} className="md:col-span-2">
           <div className={`rounded-lg border p-3 ${errors.file ? 'border-red bg-red/5' : 'border-line bg-[#fafaf8]'}`}>
             <input
               type="file"
@@ -112,7 +112,7 @@ export function DocumentModal({
             <p className="mt-2 text-[10px] text-muted">{file ? `${file.name} · ${formatSize(file.size)}` : editing?.fileName ? `Attached: ${editing.fileName} · ${editing.size}` : 'Choose a file to keep it available from this browser on this device.'}</p>
           </div>
         </Field>
-        <Field label="Description" className="col-span-2">
+        <Field label="Description" className="md:col-span-2">
           <textarea rows={3} className={inputClass} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="What is this file for? Add context or version notes." />
         </Field>
         <Field label="Updated date">
@@ -203,7 +203,7 @@ export function Documents() {
   )
 
   return (
-    <div className="mx-auto w-full max-w-[1500px] px-6 py-8 md:px-8">
+    <div className="mx-auto w-full max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8">
       <div className="mb-6">
         <p className="mb-2 text-[10px] font-semibold uppercase tracking-[1.5px] text-[#929692]">Operations</p>
         <h1 className="font-heading text-[28px] font-semibold tracking-tight text-ink">Project documents</h1>
@@ -217,7 +217,7 @@ export function Documents() {
           <div className="flex h-[38px] min-w-0 flex-1 items-center gap-2 rounded-lg border border-line bg-white px-3 text-muted md:max-w-md"><Search size={14} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search documents, files, descriptions..." className="w-full bg-transparent text-[11px] text-ink outline-none placeholder:text-[#aaa]" /></div>
           <div className="flex flex-wrap items-center gap-2">
             <label className="text-[10px] font-semibold uppercase tracking-wide text-muted" htmlFor="document-project-filter">Project</label>
-            <select id="document-project-filter" className="h-[38px] min-w-[190px] rounded-lg border border-line bg-white px-3 text-[11px] text-ink" value={projectFilter} onChange={(e) => setProjectFilter(e.target.value)}><option value="all">All projects</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select>
+            <select id="document-project-filter" className="h-[38px] min-w-0 flex-1 rounded-lg border border-line bg-white px-3 text-[11px] text-ink sm:w-auto sm:min-w-[190px] sm:flex-none" value={projectFilter} onChange={(e) => setProjectFilter(e.target.value)}><option value="all">All projects</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select>
           </div>
         </div>
       </Card>

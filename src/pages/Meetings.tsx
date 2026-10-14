@@ -171,7 +171,7 @@ function ScheduleMeetingModal({
     >
       <FormErrorSummary errors={errors} />
       <div className="grid max-h-[72vh] grid-cols-1 gap-4 overflow-y-auto pr-1 md:grid-cols-2">
-        <Field label="Meeting title" required error={errors.title} className="col-span-2">
+        <Field label="Meeting title" required error={errors.title} className="md:col-span-2">
           <input className={errors.title ? invalidInputClass : inputClass} aria-invalid={!!errors.title} value={form.title} onChange={(e) => update('title', e.target.value)} placeholder="e.g. Atlas project kickoff" />
         </Field>
         <Field label="Meeting type">
@@ -217,25 +217,25 @@ function ScheduleMeetingModal({
           <input type="time" className={errors.endTime ? invalidInputClass : inputClass} aria-invalid={!!errors.endTime} value={form.endTime} onChange={(e) => update('endTime', e.target.value)} />
         </Field>
         <p className="col-span-full -mt-2 text-[10px] text-muted">Times will be interpreted in the selected timezone: {form.timezone || 'choose a timezone'}.</p>
-        <Field label="Internal participants" className="col-span-2">
+        <Field label="Internal participants" className="md:col-span-2">
           <input className={inputClass} value={form.participants} onChange={(e) => update('participants', e.target.value)} placeholder="Names, comma separated" />
         </Field>
-        <Field label="Client attendee emails" error={errors.attendeeEmails} className="col-span-2">
+        <Field label="Client attendee emails" error={errors.attendeeEmails} className="md:col-span-2">
           <input className={errors.attendeeEmails ? invalidInputClass : inputClass} aria-invalid={!!errors.attendeeEmails} value={form.attendeeEmails} onChange={(e) => update('attendeeEmails', e.target.value)} placeholder="name@example.com, other@example.com" />
         </Field>
-        <Field label="Description" className="col-span-2">
+        <Field label="Description" className="md:col-span-2">
           <textarea rows={2} className={inputClass} value={form.description} onChange={(e) => update('description', e.target.value)} placeholder="Purpose and context for this meeting" />
         </Field>
-        <Field label="Agenda" className="col-span-2">
+        <Field label="Agenda" className="md:col-span-2">
           <textarea rows={3} className={inputClass} value={form.agenda} onChange={(e) => update('agenda', e.target.value)} placeholder="Topics to cover" />
         </Field>
-        <Field label="Discussion / MOM" className="col-span-2">
+        <Field label="Discussion / MOM" className="md:col-span-2">
           <textarea rows={3} className={inputClass} value={form.discussion} onChange={(e) => update('discussion', e.target.value)} placeholder="Discussion notes (can be completed after the meeting)" />
         </Field>
-        <Field label="Decisions" className="col-span-2">
+        <Field label="Decisions" className="md:col-span-2">
           <textarea rows={2} className={inputClass} value={form.decisions} onChange={(e) => update('decisions', e.target.value)} placeholder="Decisions made" />
         </Field>
-        <Field label="Action items" className="col-span-2">
+        <Field label="Action items" className="md:col-span-2">
           <textarea rows={3} className={inputClass} value={form.actionItems} onChange={(e) => update('actionItems', e.target.value)} placeholder="One action per line" />
         </Field>
         <Field label="Action deadline">
@@ -320,7 +320,7 @@ function MiniCalendar({
 
   return (
     <Card className={expanded ? 'w-full' : ''}>
-      <div className="mb-4 flex items-center justify-between gap-2">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-1">
           <button className="rounded-lg p-1.5 text-muted hover:bg-[#f0f1ed] hover:text-ink" aria-label="Previous" onClick={() => shiftRange(-1)}><ChevronLeft size={16} /></button>
           <p className="min-w-[120px] text-center text-[12px] font-semibold text-ink">{title}</p>
@@ -560,7 +560,7 @@ export function Meetings() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1600px] px-5 py-7 md:px-8">
+    <div className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
           <p className="mb-2 text-[10px] font-semibold uppercase tracking-[1.5px] text-[#929692]">Operations</p>

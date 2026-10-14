@@ -194,7 +194,7 @@ export function Tasks() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1600px] px-5 py-7 md:px-8">
+    <div className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
           <p className="mb-2 text-[10px] font-semibold uppercase tracking-[1.5px] text-[#929692]">Workspace</p>

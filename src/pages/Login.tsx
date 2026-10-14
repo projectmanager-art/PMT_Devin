@@ -190,13 +190,12 @@ export function Login({ onLogin }: { onLogin: () => void }) {
       <style>{INJECTED_STYLES}</style>
       <div className="flex min-h-screen items-center justify-center bg-canvas p-4 sm:p-6 md:p-10">
       <div
-        className="flex w-full max-w-[1320px] overflow-hidden rounded-card border border-line bg-paper shadow-lift sm:rounded-[38px]"
-        style={{ minHeight: '700px' }}
+        className="flex min-h-[560px] w-full max-w-[1320px] overflow-hidden rounded-card border border-line bg-paper shadow-lift sm:min-h-[700px] sm:rounded-[38px]"
       >
         <LoginVisualPanel />
 
-        <div className="relative flex w-full flex-col bg-paper md:w-1/2">
-          <div className="absolute left-0 right-0 top-0 z-10 flex items-center justify-between p-8 md:px-12 lg:px-16 lg:py-10">
+        <div className="relative flex w-full flex-col bg-paper lg:w-1/2">
+          <div className="absolute left-0 right-0 top-0 z-10 flex items-center justify-between p-6 sm:p-8 md:px-12 lg:px-16 lg:py-10">
             <div className="flex items-center gap-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-ink text-[13px] font-bold text-white">
                 N
@@ -212,7 +211,7 @@ export function Login({ onLogin }: { onLogin: () => void }) {
             </Link>
           </div>
 
-          <div className="flex h-full items-center justify-center p-8 pt-28 md:px-12 lg:px-16 lg:pt-20">
+          <div className="flex flex-1 items-center justify-center p-6 pt-28 sm:p-8 sm:pt-28 md:px-12 lg:px-16 lg:pt-20">
             <form
               onSubmit={handleSubmit}
               className="w-full max-w-[420px]"
@@ -337,7 +336,7 @@ export function Login({ onLogin }: { onLogin: () => void }) {
             </form>
           </div>
 
-          <div className="absolute bottom-0 left-0 right-0 z-10 flex flex-wrap items-center justify-between gap-3 p-8 text-[12px] text-muted md:px-12 lg:px-16 lg:py-10">
+          <div className="z-10 flex flex-wrap items-center justify-between gap-3 p-6 text-[12px] text-muted sm:p-8 md:px-12 lg:px-16 lg:py-10">
             <span>{COPYRIGHT}</span>
             <div className="flex items-center gap-4">
               <button

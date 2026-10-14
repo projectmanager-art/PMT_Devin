@@ -42,8 +42,8 @@ export function CalendarPage() {
   const today = new Date().toISOString().slice(0, 10)
 
   return (
-    <div className="mx-auto w-full max-w-[1500px] px-8 py-8">
-      <div className="mb-6 flex items-center justify-between">
+    <div className="mx-auto w-full max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="mb-2 text-[10px] font-semibold uppercase tracking-[1.5px] text-[#929692]">Workspace</p>
           <h1 className="font-heading text-[28px] font-semibold tracking-tight text-ink">Calendar</h1>
@@ -70,7 +70,8 @@ export function CalendarPage() {
 
       <Card>
         <CardTitle title={`${currentDate.toLocaleDateString('en-US', { month: 'long' })} ${currentDate.getFullYear()}`} subtitle="Tasks, meetings and deadlines" />
-        <div className="grid grid-cols-7 gap-1.5">
+        <div className="overflow-x-auto">
+        <div className="grid min-w-[560px] grid-cols-7 gap-1.5">
           {dayLabels.map((day) => (
             <div key={day} className="pb-2 text-center text-[10px] font-semibold uppercase tracking-wider text-muted">{day}</div>
           ))}
@@ -112,7 +113,8 @@ export function CalendarPage() {
             )
           })}
         </div>
-        <div className="mt-4 flex gap-4 text-[10px] text-muted">
+        </div>
+        <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-[10px] text-muted">
           <Badge tone="blue">In Progress</Badge>
           <Badge tone="amber">Scheduled / Review</Badge>
           <Badge tone="green">Done</Badge>

@@ -1,6 +1,6 @@
 export function SprintIQ() {
   return (
-    <div className="h-[calc(100vh-72px)] w-full">
+    <div className="h-[calc(100dvh-72px)] w-full">
       <iframe
         src="/sprintiq/index.html"
         title="SprintIQ Dashboard"

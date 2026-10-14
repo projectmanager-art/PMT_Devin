@@ -25,8 +25,8 @@ export function Projects() {
   }, [projects, query, statusFilter])
 
   return (
-    <div className="w-full px-8 py-8">
-      <div className="mb-6 flex items-start justify-between gap-4">
+    <div className="w-full px-4 py-6 sm:px-6 lg:px-8">
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="mb-2 text-[10px] font-semibold uppercase tracking-[1.5px] text-[#929692]">Workspace</p>
           <h1 className="font-heading text-[28px] font-semibold tracking-tight text-ink">Projects</h1>
@@ -38,7 +38,7 @@ export function Projects() {
       </div>
 
       <div className="mb-5 flex flex-wrap items-center gap-2">
-        <div className="flex h-[36px] w-[245px] items-center gap-2 rounded-lg border border-line bg-white px-3 text-muted">
+        <div className="flex h-[36px] w-full items-center gap-2 rounded-lg border border-line bg-white px-3 text-muted sm:w-[245px]">
           <Search size={14} />
           <input
             value={query}
@@ -64,7 +64,7 @@ export function Projects() {
           action={<Button className="mt-3" onClick={() => { setEditing(null); setModalOpen(true) }}>Create project</Button>}
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((project) => (
             <Card key={project.id} className="flex flex-col">
               <div className="flex items-center justify-between">

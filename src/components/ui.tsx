@@ -157,8 +157,8 @@ export function Modal({
 }) {
   if (!open) return null
   return (
-    <div className="modal-backdrop-enter fixed inset-0 z-50 grid place-items-center bg-[rgba(20,21,21,0.38)] p-5">
-      <div className="modal-panel-enter max-h-[90vh] w-full max-w-[620px] overflow-auto rounded-2xl bg-white p-6 shadow-[0_25px_70px_rgba(0,0,0,0.2)]">
+    <div className="modal-backdrop-enter fixed inset-0 z-50 grid place-items-center bg-[rgba(20,21,21,0.38)] p-3 sm:p-5">
+      <div className="modal-panel-enter max-h-[92dvh] w-full max-w-[620px] overflow-auto rounded-2xl bg-white p-4 shadow-[0_25px_70px_rgba(0,0,0,0.2)] sm:p-6">
         <div className="mb-5 flex items-center justify-between">
           <h2 className="font-heading text-[20px] font-semibold text-ink">{title}</h2>
           <button onClick={onClose} className="text-[22px] leading-none text-muted hover:text-ink" aria-label="Close">
@@ -166,7 +166,7 @@ export function Modal({
           </button>
         </div>
         {children}
-        {footer && <div className="mt-6 flex justify-end gap-2">{footer}</div>}
+        {footer && <div className="mt-6 flex flex-wrap justify-end gap-2">{footer}</div>}
       </div>
     </div>
   )

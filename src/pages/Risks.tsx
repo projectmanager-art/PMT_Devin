@@ -106,7 +106,7 @@ function RaidModal({ open, onClose, editing }: { open: boolean; onClose: () => v
     >
       <FormErrorSummary errors={errors} />
       <div className="grid max-h-[68vh] grid-cols-1 gap-4 overflow-y-auto pr-1 md:grid-cols-2">
-        <Field label="Project" required error={errors.projectId} className="col-span-2">
+        <Field label="Project" required error={errors.projectId} className="md:col-span-2">
           <select className={errors.projectId ? invalidInputClass : inputClass} aria-invalid={!!errors.projectId} value={form.projectId ?? ''} onChange={(e) => update({ projectId: e.target.value })}>
             <option value="">Select a project</option>
             {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -125,11 +125,11 @@ function RaidModal({ open, onClose, editing }: { open: boolean; onClose: () => v
           </select>
         </Field>
 
-        <Field label="Title" required error={errors.title} className="col-span-2">
+        <Field label="Title" required error={errors.title} className="md:col-span-2">
           <input className={errors.title ? invalidInputClass : inputClass} aria-invalid={!!errors.title} value={form.title ?? ''} onChange={(e) => update({ title: e.target.value })} placeholder="Short title" />
         </Field>
 
-        <Field label="Description" className="col-span-2">
+        <Field label="Description" className="md:col-span-2">
           <textarea className={inputClass} rows={3} value={form.description ?? ''} onChange={(e) => update({ description: e.target.value })} placeholder="Detailed description" />
         </Field>
 
@@ -154,7 +154,7 @@ function RaidModal({ open, onClose, editing }: { open: boolean; onClose: () => v
         </Field>
 
         {(['inherent', 'current', 'residual'] as const).map((kind) => (
-          <div key={kind} className="col-span-2 rounded-lg border border-line bg-[#fafaf8] p-3">
+          <div key={kind} className="md:col-span-2 rounded-lg border border-line bg-[#fafaf8] p-3">
             <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted">{kind} risk</p>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Probability (1-5)">
@@ -172,38 +172,38 @@ function RaidModal({ open, onClose, editing }: { open: boolean; onClose: () => v
           </div>
         ))}
 
-        <Field label="Business impact" className="col-span-2">
+        <Field label="Business impact" className="md:col-span-2">
           <input className={inputClass} value={form.businessImpact ?? ''} onChange={(e) => update({ businessImpact: e.target.value })} placeholder="Effect on business outcomes" />
         </Field>
 
-        <Field label="Schedule impact" className="col-span-2">
+        <Field label="Schedule impact" className="md:col-span-2">
           <input className={inputClass} value={form.scheduleImpact ?? ''} onChange={(e) => update({ scheduleImpact: e.target.value })} placeholder="Effect on schedule" />
         </Field>
 
-        <Field label="Mitigation plan" className="col-span-2">
+        <Field label="Mitigation plan" className="md:col-span-2">
           <textarea className={inputClass} rows={3} value={form.mitigationPlan ?? ''} onChange={(e) => update({ mitigationPlan: e.target.value })} placeholder="How will this be prevented or reduced?" />
         </Field>
 
-        <Field label="Contingency plan" className="col-span-2">
+        <Field label="Contingency plan" className="md:col-span-2">
           <textarea className={inputClass} rows={3} value={form.contingencyPlan ?? ''} onChange={(e) => update({ contingencyPlan: e.target.value })} placeholder="Fallback if the event occurs" />
         </Field>
 
-        <Field label="Action items" className="col-span-2">
+        <Field label="Action items" className="md:col-span-2">
           <textarea className={inputClass} rows={2} value={form.actionItems ?? ''} onChange={(e) => update({ actionItems: e.target.value })} placeholder="Next steps" />
         </Field>
 
         {category === 'Assumption' && (
           <>
-            <Field label="Rationale" className="col-span-2"><input className={inputClass} value={form.rationale ?? ''} onChange={(e) => update({ rationale: e.target.value })} placeholder="Why is this believed?" /></Field>
-            <Field label="Validation method" className="col-span-2"><input className={inputClass} value={form.validationMethod ?? ''} onChange={(e) => update({ validationMethod: e.target.value })} /></Field>
-            <Field label="Validation outcome" className="col-span-2"><input className={inputClass} value={form.validationOutcome ?? ''} onChange={(e) => update({ validationOutcome: e.target.value })} /></Field>
+            <Field label="Rationale" className="md:col-span-2"><input className={inputClass} value={form.rationale ?? ''} onChange={(e) => update({ rationale: e.target.value })} placeholder="Why is this believed?" /></Field>
+            <Field label="Validation method" className="md:col-span-2"><input className={inputClass} value={form.validationMethod ?? ''} onChange={(e) => update({ validationMethod: e.target.value })} /></Field>
+            <Field label="Validation outcome" className="md:col-span-2"><input className={inputClass} value={form.validationOutcome ?? ''} onChange={(e) => update({ validationOutcome: e.target.value })} /></Field>
           </>
         )}
 
         {category === 'Issue' && (
           <>
             <Field label="Discovery date"><input type="date" className={inputClass} value={form.discoveryDate ?? today()} onChange={(e) => update({ discoveryDate: e.target.value })} /></Field>
-            <Field label="Root cause" className="col-span-2"><input className={inputClass} value={form.rootCause ?? ''} onChange={(e) => update({ rootCause: e.target.value })} /></Field>
+            <Field label="Root cause" className="md:col-span-2"><input className={inputClass} value={form.rootCause ?? ''} onChange={(e) => update({ rootCause: e.target.value })} /></Field>
             <Field label="Escalation status">
               <select className={inputClass} value={form.escalationStatus ?? 'None'} onChange={(e) => update({ escalationStatus: e.target.value as any })}>
                 {(['None', 'Escalated', 'Resolved'] as const).map((s) => <option key={s}>{s}</option>)}
@@ -214,22 +214,22 @@ function RaidModal({ open, onClose, editing }: { open: boolean; onClose: () => v
 
         {category === 'Dependency' && (
           <>
-            <Field label="Prerequisite" className="col-span-2"><input className={inputClass} value={form.prerequisite ?? ''} onChange={(e) => update({ prerequisite: e.target.value })} placeholder="What must be delivered?" /></Field>
+            <Field label="Prerequisite" className="md:col-span-2"><input className={inputClass} value={form.prerequisite ?? ''} onChange={(e) => update({ prerequisite: e.target.value })} placeholder="What must be delivered?" /></Field>
             <Field label="Provider"><input className={inputClass} value={form.provider ?? ''} onChange={(e) => update({ provider: e.target.value })} /></Field>
             <Field label="Dependency type">
               <select className={inputClass} value={form.dependencyType ?? 'Internal'} onChange={(e) => update({ dependencyType: e.target.value as any })}>
                 {(['Internal', 'External', 'Cross-team', 'Technical'] as const).map((s) => <option key={s}>{s}</option>)}
               </select>
             </Field>
-            <Field label="Delay impact" className="col-span-2"><input className={inputClass} value={form.delayImpact ?? ''} onChange={(e) => update({ delayImpact: e.target.value })} /></Field>
+            <Field label="Delay impact" className="md:col-span-2"><input className={inputClass} value={form.delayImpact ?? ''} onChange={(e) => update({ delayImpact: e.target.value })} /></Field>
           </>
         )}
 
         {category === 'Risk' && (
-          <Field label="Trigger" className="col-span-2"><input className={inputClass} value={form.trigger ?? ''} onChange={(e) => update({ trigger: e.target.value })} placeholder="Event that would cause this risk to occur" /></Field>
+          <Field label="Trigger" className="md:col-span-2"><input className={inputClass} value={form.trigger ?? ''} onChange={(e) => update({ trigger: e.target.value })} placeholder="Event that would cause this risk to occur" /></Field>
         )}
 
-        <Field label="Evidence / source" className="col-span-2">
+        <Field label="Evidence / source" className="md:col-span-2">
           <input className={inputClass} value={form.evidence ?? ''} onChange={(e) => update({ evidence: e.target.value })} placeholder="Links, references, source of the record" />
         </Field>
       </div>
@@ -332,7 +332,7 @@ export function Risks() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1500px] px-6 py-8 md:px-8">
+    <div className="mx-auto w-full max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8">
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
           <p className="mb-2 text-[10px] font-semibold uppercase tracking-[1.5px] text-[#929692]">RAID Intelligence</p>

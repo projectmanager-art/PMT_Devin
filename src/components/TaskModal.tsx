@@ -120,7 +120,7 @@ export function TaskModal({
       }
     >
       <FormErrorSummary errors={errors} />
-      <div className="grid max-h-[70vh] grid-cols-2 gap-4 overflow-y-auto pr-1">
+      <div className="grid max-h-[70vh] grid-cols-1 gap-4 overflow-y-auto pr-1 sm:grid-cols-2">
         <Field label="Task title" required error={errors.title} className="col-span-2">
           <input
             className={errors.title ? invalidInputClass : inputClass}

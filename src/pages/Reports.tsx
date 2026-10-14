@@ -313,7 +313,7 @@ export function Reports() {
   const healthTotal = projects.length || 1
 
   return (
-    <div className="mx-auto w-full max-w-[1600px] px-6 py-7 md:px-8">
+    <div className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="mb-2 text-[10px] font-semibold uppercase tracking-[1.5px] text-[#929692]">Analytics workspace · As of {today}</p>

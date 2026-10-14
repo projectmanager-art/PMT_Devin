@@ -107,14 +107,14 @@ export function Timeline() {
   }, [pageEvents])
 
   return (
-    <div className="mx-auto w-full max-w-[1500px] px-6 py-8 md:px-8">
+    <div className="mx-auto w-full max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8">
       <div className="mb-6">
         <p className="mb-2 text-[10px] font-semibold uppercase tracking-[1.5px] text-[#929692]">Workspace</p>
         <h1 className="font-heading text-[28px] font-semibold tracking-tight text-ink">Timeline</h1>
         <p className="mt-2 text-[13px] text-muted">One chronological view of project milestones, task deadlines, and follow-ups across your portfolio.</p>
       </div>
 
-      <Card className="flex h-[calc(100vh-260px)] min-h-[320px] flex-col overflow-hidden">
+      <Card className="flex h-[calc(100dvh-260px)] min-h-[320px] flex-col overflow-hidden">
         <div className="shrink-0">
           <CardTitle
             title="Portfolio timeline"
