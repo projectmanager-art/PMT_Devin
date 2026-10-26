@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Download, FileText, Plus, Search } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useApp, type DocumentItem } from '../store'
+import { todayKey } from '../lib/dates'
 import { deleteDocumentFile, downloadDocumentFile, storeDocumentFile } from '../lib/documentFiles'
 import { Badge, Button, Card, CardTitle, EmptyState, Field, FormErrorSummary, Modal, TextButton, inputClass, invalidInputClass } from '../components/ui'
 
@@ -32,7 +33,7 @@ export function DocumentModal({
     name: editing?.name ?? '',
     description: editing?.description ?? '',
     projectId: editing?.projectId ?? defaultProjectId ?? projects[0]?.id ?? '',
-    updated: editing?.updated ?? new Date().toISOString().slice(0, 10),
+    updated: editing?.updated ?? todayKey(),
     status: editing?.status ?? ('Draft' as DocumentItem['status']),
   })
 
@@ -81,7 +82,7 @@ export function DocumentModal({
       }
     >
       <FormErrorSummary errors={errors} />
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div className="form-stagger grid grid-cols-1 gap-4 md:grid-cols-2">
         <Field label="Document name" required error={errors.name} className="md:col-span-2">
           <input className={errors.name ? invalidInputClass : inputClass} aria-invalid={!!errors.name} value={form.name} onChange={(e) => { setForm({ ...form, name: e.target.value }); setErrors((current) => ({ ...current, name: '' })) }} placeholder="Brief, guidelines, contract..." />
         </Field>

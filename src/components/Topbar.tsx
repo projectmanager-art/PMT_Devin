@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type ElementType } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { AlertCircle, AlertTriangle, Bell, Command, LogOut, Menu, Search, Settings, UserRound, Users } from 'lucide-react'
+import { AlertCircle, AlertTriangle, Bell, ChevronRight, LogOut, Menu, Search, Settings, UserRound, Users } from 'lucide-react'
 import { useApp } from '../store'
+import { todayKey } from '../lib/dates'
 import { Avatar, avatarUrl } from '../components/ui'
 
 interface SearchResult {
@@ -16,32 +17,33 @@ interface AlertItem {
   type: 'overdue' | 'blocked' | 'risk' | 'review'
   message: string
   to: string
+  items?: { id: string; title: string; meta: string; to: string }[]
 }
 
-const alertTone: Record<AlertItem['type'], { iconBg: string; iconColor: string; border: string; bg: string }> = {
+const alertTone: Record<AlertItem['type'], { iconBg: string; iconColor: string; strip: string; pill: string }> = {
   overdue: {
-    iconBg: 'bg-[#fde2e2]',
-    iconColor: 'text-[#d64545]',
-    border: 'border-[#f5c8c8]',
-    bg: 'bg-[#fef0f0]',
+    iconBg: 'bg-[#fee2e2]',
+    iconColor: 'text-[#dc2626]',
+    strip: 'bg-[#ef4444]',
+    pill: 'bg-[#fee2e2] text-[#b91c1c]',
   },
   blocked: {
-    iconBg: 'bg-[#fdeecb]',
-    iconColor: 'text-[#b87b2c]',
-    border: 'border-[#f3dfb8]',
-    bg: 'bg-[#fdf6e8]',
+    iconBg: 'bg-[#fef3c7]',
+    iconColor: 'text-[#b45309]',
+    strip: 'bg-[#f0b429]',
+    pill: 'bg-[#fef3c7] text-[#92400e]',
   },
   risk: {
-    iconBg: 'bg-[#fde2e2]',
-    iconColor: 'text-[#d64545]',
-    border: 'border-[#f5c8c8]',
-    bg: 'bg-[#fef0f0]',
+    iconBg: 'bg-[#fee2e2]',
+    iconColor: 'text-[#dc2626]',
+    strip: 'bg-[#ef4444]',
+    pill: 'bg-[#fee2e2] text-[#b91c1c]',
   },
   review: {
-    iconBg: 'bg-[#fdeecb]',
-    iconColor: 'text-[#b87b2c]',
-    border: 'border-[#f3dfb8]',
-    bg: 'bg-[#fdf6e8]',
+    iconBg: 'bg-[#e0e7ff]',
+    iconColor: 'text-[#4f46e5]',
+    strip: 'bg-[#6366f1]',
+    pill: 'bg-[#e0e7ff] text-[#4338ca]',
   },
 }
 
@@ -57,6 +59,7 @@ export function Topbar({ onLogout, onMenuClick }: { onLogout: () => void; onMenu
   const [query, setQuery] = useState('')
   const [showResults, setShowResults] = useState(false)
   const [showAlerts, setShowAlerts] = useState(false)
+  const [expandedAlert, setExpandedAlert] = useState<string | null>(null)
   const [showUserMenu, setShowUserMenu] = useState(false)
   const userMenuRef = useRef<HTMLDivElement>(null)
   const notificationsRef = useRef<HTMLDivElement>(null)
@@ -114,10 +117,25 @@ export function Topbar({ onLogout, onMenuClick }: { onLogout: () => void; onMenu
 
   const alerts = useMemo<AlertItem[]>(() => {
     const list: AlertItem[] = []
-    const overdue = tasks.filter((t) => t.status !== 'Completed' && t.due < new Date().toISOString().slice(0, 10))
-    if (overdue.length) list.push({ id: 'overdue', type: 'overdue', message: `${overdue.length} overdue task${overdue.length > 1 ? 's' : ''} need attention`, to: '/tasks' })
+    const projectName = (projectId: string) => projects.find((p) => p.id === projectId)?.name ?? 'No project'
+    const overdue = tasks.filter((t) => t.status !== 'Completed' && t.due && t.due < todayKey())
+    if (overdue.length)
+      list.push({
+        id: 'overdue',
+        type: 'overdue',
+        message: `${overdue.length} overdue task${overdue.length > 1 ? 's' : ''} need attention`,
+        to: '/tasks',
+        items: overdue.map((t) => ({ id: t.id, title: t.title, meta: `${projectName(t.projectId)} · due ${t.due}`, to: `/tasks/${t.id}` })),
+      })
     const blocked = tasks.filter((t) => t.status === 'Blocked')
-    if (blocked.length) list.push({ id: 'blocked', type: 'blocked', message: `${blocked.length} blocked task${blocked.length > 1 ? 's' : ''}`, to: '/tasks' })
+    if (blocked.length)
+      list.push({
+        id: 'blocked',
+        type: 'blocked',
+        message: `${blocked.length} blocked task${blocked.length > 1 ? 's' : ''}`,
+        to: '/tasks',
+        items: blocked.map((t) => ({ id: t.id, title: t.title, meta: `Blocked · ${projectName(t.projectId)}`, to: `/tasks/${t.id}` })),
+      })
     const redProjects = projects.filter((p) => p.health === 'Red')
     redProjects.forEach((p) => list.push({ id: `risk-${p.id}`, type: 'risk', message: `${p.name} is at risk`, to: `/projects/${p.id}` }))
     const amberProjects = projects.filter((p) => p.health === 'Amber')
@@ -155,14 +173,10 @@ export function Topbar({ onLogout, onMenuClick }: { onLogout: () => void; onMenu
               placeholder="Search anything..."
               className="w-full bg-transparent text-[12px] text-ink outline-none placeholder:text-[#b0b3b0]"
             />
-            <div className="hidden h-[22px] w-[22px] flex-col items-center justify-center rounded-md border border-[#e6e6e1] bg-[#f9f9f7] text-[9px] text-[#9a9c9a] leading-none sm:flex">
-              <Command size={10} />
-              <span className="-mt-[1px]">K</span>
-            </div>
           </div>
 
           {showResults && query.trim() && (
-            <div className="absolute right-0 top-[50px] w-[320px] max-w-[calc(100vw-1.5rem)] rounded-xl border border-line bg-white p-2 shadow-lift">
+            <div className="dropdown-enter absolute right-0 top-[50px] w-[320px] max-w-[calc(100vw-1.5rem)] rounded-xl border border-line bg-white p-2 shadow-lift">
               {results.length === 0 ? (
                 <p className="px-3 py-4 text-center text-[11px] text-muted">No results found</p>
               ) : (
@@ -198,38 +212,99 @@ export function Topbar({ onLogout, onMenuClick }: { onLogout: () => void; onMenu
             {alerts.length > 0 && <span className="absolute right-[7px] top-[7px] h-[5px] w-[5px] rounded-full bg-red" />}
           </button>
           {showAlerts && (
-            <div className="absolute right-0 top-[42px] w-[300px] max-w-[calc(100vw-1.5rem)] rounded-xl border border-line bg-white p-2 shadow-lift">
-              <p className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted">Notifications</p>
+            <div className="dropdown-enter absolute right-0 top-[42px] w-[320px] max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-xl border border-line bg-white shadow-lift">
+              <div className="flex items-center justify-between px-3.5 pb-1 pt-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted">Notifications</p>
+                {alerts.length > 0 && (
+                  <span className="rounded-full bg-ink px-1.5 py-px text-[9px] font-semibold leading-4 text-white">{alerts.length}</span>
+                )}
+              </div>
               {alerts.length === 0 ? (
-                <p className="px-3 py-4 text-center text-[11px] text-muted">You're all caught up</p>
+                <p className="px-3 pb-5 pt-3 text-center text-[11px] text-muted">You're all caught up</p>
               ) : (
-                <div className="space-y-2">
-                  {alerts.map((alert) => {
-                    const Icon = alertIcon[alert.type]
-                    const tone = alertTone[alert.type]
-                    return (
-                      <button
-                        key={alert.id}
-                        type="button"
-                        onClick={() => {
-                          navigate(alert.to, { state: alert.type === 'blocked' ? { statusFilter: 'Blocked' } : undefined })
-                          setShowAlerts(false)
-                        }}
-                        className={`flex w-full items-start gap-3 rounded-[12px] border ${tone.border} ${tone.bg} p-3 text-left transition hover:shadow-lift`}
-                      >
-                        <div className={`grid h-7 w-7 flex-shrink-0 place-items-center rounded-full ${tone.iconBg} ${tone.iconColor}`}>
-                          <Icon size={14} />
+                <>
+                  <div className="space-y-2 p-2">
+                    {alerts.map((alert, i) => {
+                      const Icon = alertIcon[alert.type]
+                      const tone = alertTone[alert.type]
+                      const label = alert.type === 'overdue' ? 'Task alert' : alert.type === 'blocked' ? 'Blocked' : alert.type === 'risk' ? 'Project risk' : 'Needs review'
+                      const expanded = expandedAlert === alert.id
+                      return (
+                        <div
+                          key={alert.id}
+                          className="page-enter overflow-hidden rounded-[12px] border border-line bg-white shadow-sm"
+                          style={{ animationDelay: `${i * 60}ms` }}
+                        >
+                          <div
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => {
+                              if (alert.items?.length) {
+                                setExpandedAlert(expanded ? null : alert.id)
+                              } else {
+                                navigate(alert.to)
+                                setShowAlerts(false)
+                              }
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') e.currentTarget.click()
+                            }}
+                            className="group flex w-full cursor-pointer items-stretch text-left transition hover:bg-[#fafaf8]"
+                          >
+                            <span className={`w-1 shrink-0 ${tone.strip}`} />
+                            <span className={`mx-2.5 my-2.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg ${tone.iconBg} ${tone.iconColor}`}>
+                              <Icon size={15} />
+                            </span>
+                            <div className="min-w-0 flex-1 self-center py-2 pr-1">
+                              <p className="truncate text-[11px] font-semibold leading-snug text-ink">{alert.message}</p>
+                              <p className="mt-0.5 flex items-center gap-1.5 text-[9px] uppercase tracking-wide text-muted">
+                                <span className={`rounded-full px-1.5 py-px text-[8px] font-semibold ${tone.pill}`}>{label}</span>
+                                {alert.items?.length ? <span className="normal-case tracking-normal">{alert.items.length} item{alert.items.length > 1 ? 's' : ''}</span> : null}
+                              </p>
+                            </div>
+                            <ChevronRight
+                              size={14}
+                              className={`mr-2.5 shrink-0 self-center text-muted transition ${alert.items?.length ? (expanded ? 'rotate-90' : '') : 'opacity-0 group-hover:translate-x-0.5 group-hover:opacity-100'}`}
+                            />
+                          </div>
+                          {expanded && alert.items && (
+                            <div className="border-t border-line bg-[#fafaf8] p-1.5">
+                              {alert.items.map((item) => (
+                                <button
+                                  key={item.id}
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    navigate(item.to)
+                                    setShowAlerts(false)
+                                  }}
+                                  className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition hover:bg-white"
+                                >
+                                  <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${tone.strip}`} />
+                                  <span className="min-w-0 flex-1">
+                                    <span className="block truncate text-[11px] font-medium text-ink">{item.title}</span>
+                                    <span className="block truncate text-[9px] text-muted">{item.meta}</span>
+                                  </span>
+                                  <ChevronRight size={12} className="shrink-0 text-muted" />
+                                </button>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-[11px] font-medium leading-[1.35] text-ink">{alert.message}</p>
-                          <p className="mt-0.5 text-[9px] uppercase tracking-wide text-muted">
-                            {alert.type === 'overdue' ? 'Task alert' : alert.type === 'blocked' ? 'Blocked' : alert.type === 'risk' ? 'Project risk' : 'Needs review'}
-                          </p>
-                        </div>
-                      </button>
-                    )
-                  })}
-                </div>
+                      )
+                    })}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigate('/risks')
+                      setShowAlerts(false)
+                    }}
+                    className="w-full border-t border-line px-3 py-2.5 text-center text-[11px] font-medium text-ink transition hover:bg-[#f7f7f5]"
+                  >
+                    View all alerts →
+                  </button>
+                </>
               )}
             </div>
           )}
@@ -251,7 +326,7 @@ export function Topbar({ onLogout, onMenuClick }: { onLogout: () => void; onMenu
           </button>
 
           {showUserMenu && (
-            <div className="absolute right-0 top-[42px] w-[220px] max-w-[calc(100vw-1.5rem)] rounded-xl border border-line bg-white p-2 shadow-lift">
+            <div className="dropdown-enter absolute right-0 top-[42px] w-[220px] max-w-[calc(100vw-1.5rem)] rounded-xl border border-line bg-white p-2 shadow-lift">
               <div className="px-3 py-2">
                 <p className="text-[12px] font-semibold text-ink">Sandeep Rana</p>
                 <p className="text-[10px] text-muted">Project Manager</p>

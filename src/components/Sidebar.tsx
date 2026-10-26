@@ -13,19 +13,18 @@ import {
   LayoutDashboard,
   Plus,
   Settings,
-  Target,
   TriangleAlert,
   UserRound,
   Users,
   Video,
   CalendarClock,
+  Gauge,
 } from 'lucide-react'
 
 const mainLinks = [
   { to: '/', label: 'Overview', icon: LayoutDashboard, liquid: true, color: 'text-[#2b6cb0]' },
   { to: '/projects', label: 'Projects', icon: FolderKanban, color: 'text-[#3b8b67]' },
-  { to: '/sprints', label: 'Sprints', icon: Target, color: 'text-[#7955a9]' },
-  { to: '/tasks', label: 'Tasks', icon: CheckSquare, color: 'text-[#b87b2c]' },
+  { to: '/tasks', label: 'Workstream', icon: CheckSquare, color: 'text-[#b87b2c]' },
   { to: '/timeline', label: 'Timeline', icon: CalendarClock, color: 'text-[#7955a9]' },
   { to: '/calendar', label: 'Calendar', icon: CalendarDays, color: 'text-[#c25555]' },
 ]
@@ -38,6 +37,7 @@ const peopleLinks = [
 
 const operationsLinks = [
   { to: '/risks', label: 'RAID Intelligence', icon: TriangleAlert, color: 'text-[#c25555]' },
+  { to: '/sprintiq', label: 'SprintIQ', icon: Gauge, color: 'text-[#e63946]' },
   { to: '/meetings', label: 'Meetings', icon: Video, color: 'text-[#7955a9]' },
   { to: '/documents', label: 'Documents', icon: FileText, color: 'text-[#b87b2c]' },
 ]
@@ -116,7 +116,9 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
     >
       <div className="mb-6 flex items-center justify-between px-2">
         <div className="flex items-center gap-3">
-          <div className="grid h-8 w-8 place-items-center rounded-[10px] bg-ink font-heading text-[11px] font-bold text-white">NX</div>
+          <div className="grid h-9 w-9 place-items-center overflow-hidden rounded-full bg-black">
+            <img src="/nexora-mark.png" alt="NEXORA" className="h-full w-full object-cover" />
+          </div>
           <div>
             <p className="font-heading text-[17px] font-bold leading-none tracking-tight text-ink">NEXORA</p>
             <p className="mt-1 text-[8px] leading-tight text-[#8d918e]">Project Management, Simplified.</p>
@@ -153,7 +155,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
         </button>
 
         {showWorkspace && (
-          <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-40 rounded-xl border border-line bg-white p-1.5 shadow-lift">
+          <div className="dropdown-enter absolute left-0 right-0 top-[calc(100%+4px)] z-40 rounded-xl border border-line bg-white p-1.5 shadow-lift">
             <p className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted">Workspace</p>
             {workspaces.map((w) => (
               <button

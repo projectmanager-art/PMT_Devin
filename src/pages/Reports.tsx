@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { AlertTriangle, CheckCircle2, Clock, PauseCircle, X } from 'lucide-react'
 import { useApp, type Project, type Task } from '../store'
+import { todayKey } from '../lib/dates'
 import { Badge, Button, Card, CardTitle, EmptyState, Modal, ProgressBar, TextButton } from '../components/ui'
 
 const reportDefs = [
@@ -27,7 +28,7 @@ function downloadCsv(filename: string, rows: (string | number)[][]) {
   URL.revokeObjectURL(url)
 }
 
-function WeeklyKeyPoints({
+export function WeeklyKeyPoints({
   projects,
   tasks,
   navigate,
@@ -36,12 +37,12 @@ function WeeklyKeyPoints({
   tasks: Task[]
   navigate: (to: string) => void
 }) {
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayKey()
   const completed = projects.filter((p) => p.status === 'Completed').length
   const onHold = projects.filter((p) => p.status === 'On Hold').length
   const active = projects.filter((p) => p.status === 'In Progress').length
   const blockers = tasks.filter((t) => t.status === 'Blocked').length
-  const overdue = tasks.filter((t) => t.status !== 'Completed' && t.due < today).length
+  const overdue = tasks.filter((t) => t.status !== 'Completed' && !!t.due && t.due < today).length
 
   return (
     <div className="space-y-4">
@@ -70,7 +71,7 @@ function WeeklyKeyPoints({
 
       {projects.map((p) => {
         const blockerCount = tasks.filter((t) => t.projectId === p.id && t.status === 'Blocked').length
-        const overdueCount = tasks.filter((t) => t.projectId === p.id && t.status !== 'Completed' && t.due < today).length
+        const overdueCount = tasks.filter((t) => t.projectId === p.id && t.status !== 'Completed' && !!t.due && t.due < today).length
         const healthTone = p.health === 'Green' ? 'green' : p.health === 'Amber' ? 'amber' : 'red'
         return (
           <Card key={p.id} className="p-3">
@@ -124,12 +125,12 @@ function WeeklyPulse({
   updateTask: (id: string, patch: Partial<Task>) => void
   navigate: (to: string) => void
 }) {
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayKey()
   const completed = projects.filter((p) => p.status === 'Completed').length
   const onHold = projects.filter((p) => p.status === 'On Hold').length
   const active = projects.filter((p) => p.status === 'In Progress').length
   const blockers = tasks.filter((t) => t.status === 'Blocked').length
-  const overdue = tasks.filter((t) => t.status !== 'Completed' && t.due < today).length
+  const overdue = tasks.filter((t) => t.status !== 'Completed' && !!t.due && t.due < today).length
 
   return (
     <div className="space-y-4">
@@ -158,7 +159,7 @@ function WeeklyPulse({
 
       {projects.map((p) => {
         const projectBlockers = tasks.filter((t) => t.projectId === p.id && t.status === 'Blocked')
-        const projectOverdue = tasks.filter((t) => t.projectId === p.id && t.status !== 'Completed' && t.due < today)
+        const projectOverdue = tasks.filter((t) => t.projectId === p.id && t.status !== 'Completed' && !!t.due && t.due < today)
         const healthTone = p.health === 'Green' ? 'green' : p.health === 'Amber' ? 'amber' : 'red'
         return (
           <Card key={p.id} className="p-4">
@@ -249,7 +250,7 @@ export function Reports() {
   const [selected, setSelected] = useState<string | null>(() => (location.state?.selected as string | undefined) ?? null)
   const [showPulse, setShowPulse] = useState(() => Boolean(location.state?.showPulse))
 
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayKey()
   const activeProjects = projects.filter((project) => project.status !== 'Completed').length
   const completedTasks = tasks.filter((task) => task.status === 'Completed').length
   const blockedTasks = tasks.filter((task) => task.status === 'Blocked').length
@@ -278,9 +279,9 @@ export function Reports() {
       case 'rag':
         return projects.map((p) => [p.name, p.health, p.status, `${p.progress}%`])
       case 'workload':
-        return team.map((m) => [m.name, m.role, `${m.utilized}/${m.capacity}h`, `${Math.round((m.utilized / m.capacity) * 100)}%`])
+        return team.map((m) => [m.name, m.role, `${m.utilized}/${m.capacity}h`, `${m.capacity > 0 ? Math.round((m.utilized / m.capacity) * 100) : 0}%`])
       case 'overdue':
-        return tasks.filter((t) => t.status !== 'Completed' && t.due < new Date().toISOString().slice(0, 10)).map((t) => [t.title, t.assignee, t.due, t.status])
+        return tasks.filter((t) => t.status !== 'Completed' && !!t.due && t.due < todayKey()).map((t) => [t.title, t.assignee, t.due, t.status])
       default:
         return []
     }
@@ -320,7 +321,6 @@ export function Reports() {
           <h1 className="font-heading text-[28px] font-semibold tracking-tight text-ink">Reports &amp; insights</h1>
           <p className="mt-1.5 text-[13px] text-muted">A consolidated view of delivery, project health, workload, and immediate priorities.</p>
         </div>
-        <Button variant="secondary" onClick={() => navigate('/reports/sprintiq')}>Open SprintIQ dashboard</Button>
       </div>
 
       <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
@@ -416,7 +416,7 @@ export function Reports() {
         </div>
 
         {selected && (
-          <div className="mt-5 border-t border-line pt-4">
+          <div key={selected} className="page-enter mt-5 border-t border-line pt-4">
             <div className="mb-4">
               <p className="text-[14px] font-semibold text-ink">{reportDefs.find((report) => report.id === selected)?.title ?? 'Report preview'}</p>
               <p className="mt-1 text-[10px] text-muted">{reportDefs.find((report) => report.id === selected)?.description} · {reportData.length} row{reportData.length === 1 ? '' : 's'} · Refreshed {new Date().toLocaleString()}</p>

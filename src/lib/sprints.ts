@@ -135,135 +135,15 @@ export interface SprintData {
   notifications: Notification[]
 }
 
-const offset = (days: number) => {
-  const d = new Date()
-  d.setDate(d.getDate() + days)
-  return d.toISOString().slice(0, 10)
-}
-
 export const seedSprintData: SprintData = {
-  sprints: [
-    {
-      id: 's1',
-      projectId: 'p1',
-      name: 'Sprint 1 — Foundation',
-      number: 1,
-      goal: 'Deliver homepage, navigation and core brand components for Atlas Rebrand.',
-      start: offset(-14),
-      end: offset(-2),
-      workingDays: 10,
-      hoursPerDay: 8,
-      status: 'Completed',
-      owner: 'Sandeep Rana',
-      members: ['Sandeep Rana', 'Maya Patel', 'Chris Wong', 'Alex Morgan'],
-      originalItemIds: ['b1', 'b2', 'b3', 'b4'],
-      createdAt: offset(-20),
-      completedAt: offset(-2),
-    },
-    {
-      id: 's2',
-      projectId: 'p3',
-      name: 'Sprint 2 — Mercury Mobile v1.2',
-      number: 2,
-      goal: 'Complete payment flow, QA mobile navigation and security checklist.',
-      start: offset(-1),
-      end: offset(13),
-      workingDays: 10,
-      hoursPerDay: 8,
-      status: 'Active',
-      owner: 'Sandeep Rana',
-      members: ['Sandeep Rana', 'Maya Patel', 'Chris Wong', 'Alex Morgan', 'Sam Lee'],
-      originalItemIds: ['b5', 'b6', 'b7', 'b8', 'b9', 'b10'],
-      createdAt: offset(-7),
-    },
-    {
-      id: 's3',
-      projectId: 'p2',
-      name: 'Sprint 3 — Vertex Campaign Launch',
-      number: 3,
-      goal: 'Finalize launch assets and get client approval for color system.',
-      start: offset(3),
-      end: offset(17),
-      workingDays: 10,
-      hoursPerDay: 8,
-      status: 'Planned',
-      owner: 'Sandeep Rana',
-      members: ['Sandeep Rana', 'Maya Patel', 'Sam Lee'],
-      originalItemIds: ['b11', 'b12', 'b13'],
-      createdAt: offset(-1),
-    },
-  ],
-  backlog: [
-    { id: 'b1', title: 'Homepage hero design', description: 'Create the new homepage hero.', projectId: 'p1', type: 'Story', priority: 'High', storyPoints: 5, estimatedHours: 12, assignee: 'Maya Patel', reporter: 'Sandeep Rana', dependencies: [], status: 'Done', sprintId: 's1', sprintOrder: 0, labels: ['design'], attachments: [], comments: [], acceptanceCriteria: [], createdAt: offset(-19), startedAt: offset(-14), reviewAt: offset(-6), qaAt: offset(-4), completedAt: offset(-3) },
-    { id: 'b2', title: 'Navigation component', description: 'Responsive navigation.', projectId: 'p1', type: 'Task', priority: 'High', storyPoints: 3, estimatedHours: 8, assignee: 'Chris Wong', reporter: 'Sandeep Rana', dependencies: [], status: 'Done', sprintId: 's1', sprintOrder: 1, labels: ['ui'], attachments: [], comments: [], acceptanceCriteria: [], createdAt: offset(-19), startedAt: offset(-13), reviewAt: offset(-5), completedAt: offset(-4) },
-    { id: 'b3', title: 'Brand color tokens', description: 'Define color tokens.', projectId: 'p1', type: 'Task', priority: 'Medium', storyPoints: 2, estimatedHours: 6, assignee: 'Maya Patel', reporter: 'Sandeep Rana', dependencies: [], status: 'Done', sprintId: 's1', sprintOrder: 2, labels: ['design-system'], attachments: [], comments: [], acceptanceCriteria: [], createdAt: offset(-19), completedAt: offset(-5) },
-    { id: 'b4', title: 'Footer layout', description: 'Footer layout.', projectId: 'p1', type: 'Task', priority: 'Low', storyPoints: 2, estimatedHours: 5, assignee: 'Alex Morgan', reporter: 'Sandeep Rana', dependencies: [], status: 'Done', sprintId: 's1', sprintOrder: 3, labels: ['frontend'], attachments: [], comments: [], acceptanceCriteria: [], createdAt: offset(-19), completedAt: offset(-2) },
-    { id: 'b5', title: 'Payment flow UX', description: 'Payment flow wireframes.', projectId: 'p3', type: 'Story', priority: 'Critical', storyPoints: 8, estimatedHours: 20, assignee: 'Maya Patel', reporter: 'Sandeep Rana', dependencies: [], status: 'In Progress', sprintId: 's2', sprintOrder: 0, labels: ['ux'], attachments: [], comments: [], acceptanceCriteria: [], createdAt: offset(-8), startedAt: offset(-1) },
-    { id: 'b6', title: 'QA mobile navigation', description: 'QA the navigation.', projectId: 'p3', type: 'Bug', priority: 'High', storyPoints: 3, estimatedHours: 8, assignee: 'Sam Lee', reporter: 'Chris Wong', dependencies: ['b2'], status: 'Done', completedAt: offset(0), sprintId: 's2', sprintOrder: 1, labels: ['qa'], attachments: [], comments: [], acceptanceCriteria: [], createdAt: offset(-8), startedAt: offset(-2), reviewAt: offset(0), qaAt: offset(0) },
-    { id: 'b7', title: 'Security checklist', description: 'Security review.', projectId: 'p3', type: 'Technical Debt', priority: 'High', storyPoints: 5, estimatedHours: 12, assignee: 'Alex Morgan', reporter: 'Sandeep Rana', dependencies: [], status: 'Done', completedAt: offset(0), sprintId: 's2', sprintOrder: 2, labels: ['security'], attachments: [], comments: [], acceptanceCriteria: [], createdAt: offset(-8), startedAt: offset(-1), reviewAt: offset(0) },
-    { id: 'b8', title: 'Onboarding screens', description: 'Onboarding screens.', projectId: 'p3', type: 'Story', priority: 'Medium', storyPoints: 5, estimatedHours: 14, assignee: 'Chris Wong', reporter: 'Maya Patel', dependencies: [], status: 'To Do', sprintId: 's2', sprintOrder: 3, labels: ['ui'], attachments: [], comments: [], acceptanceCriteria: [], createdAt: offset(-8) },
-    { id: 'b9', title: 'Analytics events', description: 'Set up analytics events.', projectId: 'p3', type: 'Task', priority: 'Medium', storyPoints: 3, estimatedHours: 10, assignee: 'Alex Morgan', reporter: 'Sandeep Rana', dependencies: ['b8'], status: 'Blocked', sprintId: 's2', sprintOrder: 4, labels: ['analytics'], attachments: [], comments: [], acceptanceCriteria: [], createdAt: offset(-8) },
-    { id: 'b10', title: 'Push notifications', description: 'Push notification setup.', projectId: 'p3', type: 'Task', priority: 'Low', storyPoints: 2, estimatedHours: 7, assignee: 'Sam Lee', reporter: 'Sandeep Rana', dependencies: [], status: 'Backlog', sprintId: 's2', sprintOrder: 5, labels: ['backend'], attachments: [], comments: [], acceptanceCriteria: [], createdAt: offset(-8) },
-    { id: 'b11', title: 'Launch banner', description: 'Launch banner design.', projectId: 'p2', type: 'Story', priority: 'High', storyPoints: 5, estimatedHours: 12, assignee: 'Maya Patel', reporter: 'Sandeep Rana', dependencies: [], status: 'Backlog', sprintOrder: 0, labels: ['campaign'], attachments: [], comments: [], acceptanceCriteria: [], createdAt: offset(-2) },
-    { id: 'b12', title: 'Client approval color system', description: 'Get approval.', projectId: 'p2', type: 'Task', priority: 'Critical', storyPoints: 2, estimatedHours: 4, assignee: 'Sandeep Rana', reporter: 'Maya Patel', dependencies: [], status: 'Backlog', sprintOrder: 1, labels: ['client'], attachments: [], comments: [], acceptanceCriteria: [], createdAt: offset(-2) },
-    { id: 'b13', title: 'Landing page copy', description: 'Landing page copy.', projectId: 'p2', type: 'Task', priority: 'Medium', storyPoints: 3, estimatedHours: 8, assignee: 'Sam Lee', reporter: 'Sandeep Rana', dependencies: [], status: 'Backlog', sprintOrder: 2, labels: ['copy'], attachments: [], comments: [], acceptanceCriteria: [], createdAt: offset(-2) },
-  ],
-  timeLogs: [
-    { id: 'l1', backlogItemId: 'b1', employee: 'Maya Patel', date: offset(-12), hours: 6, note: 'Initial concepts' },
-    { id: 'l2', backlogItemId: 'b1', employee: 'Maya Patel', date: offset(-10), hours: 6, note: 'Refinements' },
-    { id: 'l3', backlogItemId: 'b2', employee: 'Chris Wong', date: offset(-11), hours: 4, note: 'Wireframe' },
-    { id: 'l4', backlogItemId: 'b2', employee: 'Chris Wong', date: offset(-9), hours: 4, note: 'Build' },
-    { id: 'l5', backlogItemId: 'b3', employee: 'Maya Patel', date: offset(-8), hours: 6, note: 'Tokens' },
-    { id: 'l6', backlogItemId: 'b4', employee: 'Alex Morgan', date: offset(-5), hours: 5, note: 'Footer' },
-    { id: 'l7', backlogItemId: 'b5', employee: 'Maya Patel', date: offset(-1), hours: 4, note: 'Flow start' },
-    { id: 'l8', backlogItemId: 'b6', employee: 'Sam Lee', date: offset(0), hours: 6, note: 'QA pass 1' },
-    { id: 'l9', backlogItemId: 'b7', employee: 'Alex Morgan', date: offset(0), hours: 5, note: 'Security review' },
-    { id: 'l10', backlogItemId: 'b9', employee: 'Alex Morgan', date: offset(-1), hours: 2, note: 'Blocked investigation' },
-    { id: 'l11', backlogItemId: 'b6', employee: 'Sam Lee', date: offset(0), hours: 2, note: 'QA sign-off' },
-    { id: 'l12', backlogItemId: 'b7', employee: 'Alex Morgan', date: offset(0), hours: 7, note: 'Security checklist completed' },
-  ],
-  blockers: [
-    { id: 'bk1', backlogItemId: 'b9', sprintId: 's2', employee: 'Alex Morgan', description: 'Waiting for analytics access credentials.', type: 'Access', createdAt: offset(-1), expectedResolution: offset(1), owner: 'Sandeep Rana', status: 'Open', blockedHours: 4 },
-    { id: 'bk2', backlogItemId: 'b7', sprintId: 's2', employee: 'Alex Morgan', description: 'Client sign-off pending.', type: 'Client Dependency', createdAt: offset(0), expectedResolution: offset(2), owner: 'Sandeep Rana', status: 'Resolved', actualResolution: 'Client sign-off received and checklist completed', blockedHours: 2 },
-  ],
-  scopeChanges: [
-    { id: 'sc1', sprintId: 's2', backlogItemId: 'b10', type: 'Added', changedAt: offset(0), changedBy: 'Sandeep Rana' },
-    { id: 'sc2', sprintId: 's2', backlogItemId: 'b9', type: 'Re-estimated', oldValue: '7', newValue: '10', changedAt: offset(-1), changedBy: 'Sandeep Rana' },
-  ],
-  dailyMetrics: ((): SprintMetric[] => {
-    const hours = [71, 45, 41, 37, 33, 29, 25, 21, 17, 13, 9, 6, 3, 0]
-    const tasks = [0, 2, 2, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6]
-    return Array.from({ length: 14 }, (_, i) => {
-      const d = new Date()
-      d.setDate(d.getDate() - 1 + i)
-      return {
-        sprintId: 's2',
-        date: d.toISOString().slice(0, 10),
-        remainingHours: hours[i],
-        remainingPoints: Math.round((hours[i] / 71) * 26),
-        completedTasks: tasks[i],
-      }
-    })
-  })(),
-  retrospectives: [
-    {
-      sprintId: 's1',
-      wentWell: ['Design review cadence', 'Clear acceptance criteria'],
-      didNotGoWell: ['Late client feedback'],
-      blockers: [],
-      processIssues: ['Handoff documentation'],
-      clientIssues: ['Approval turnaround'],
-      technicalIssues: [],
-      actions: [
-        { id: 'a1', action: 'Document handoff checklist', owner: 'Sandeep Rana', priority: 'High', due: offset(5), status: 'Open' },
-      ],
-    },
-  ],
-  notifications: [
-    { id: 'n1', message: 'Alex Morgan is overloaded in Sprint 2.', type: 'capacity', read: false, createdAt: offset(0), recipient: 'PM' },
-    { id: 'n2', message: 'Sprint 2 scope increased by 2 tasks.', type: 'scope', read: false, createdAt: offset(0), recipient: 'PM' },
-    { id: 'n3', message: 'New blocker on Payment flow UX.', type: 'blocker', read: false, createdAt: offset(-1), recipient: 'Maya Patel' },
-  ],
+  sprints: [],
+  backlog: [],
+  timeLogs: [],
+  blockers: [],
+  scopeChanges: [],
+  dailyMetrics: [],
+  retrospectives: [],
+  notifications: [],
 }
 
 export function getSprintItems(sprintId: string, data: SprintData) {
@@ -357,7 +237,7 @@ export function getSprintHealthScore(sprint: Sprint, data: SprintData) {
   if (scopeChanges) reasons.push(`${scopeChanges} scope change${scopeChanges > 1 ? 's' : ''}`)
   if (openBlockers) reasons.push(`${openBlockers} open blocker${openBlockers > 1 ? 's' : ''}`)
   if (kpi.carried) reasons.push(`${kpi.carried} carried forward`)
-  return { score, status, reasons }
+  return { score: Math.max(0, score), status, reasons }
 }
 
 export interface EmployeePerformance {

@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { todayKey } from './dates'
 import {
   seedSprintData,
   type SprintData,
@@ -12,7 +13,7 @@ import {
   type Notification,
 } from './sprints'
 
-const STORAGE_KEY = 'nexora-sprints-v2'
+const STORAGE_KEY = 'nexora-sprints-v3'
 const uid = () => Math.random().toString(36).slice(2, 9)
 
 interface SprintContextValue extends SprintData {
@@ -79,7 +80,7 @@ export function SprintProvider({ children }: { children: ReactNode }) {
     const recordScope = (change: Omit<ScopeChange, 'id' | 'changedAt' | 'changedBy'>, changedBy?: string) => {
       patch('scopeChanges', (items) => [
         ...(items as ScopeChange[]),
-        { ...change, id: uid(), changedAt: new Date().toISOString().slice(0, 10), changedBy: changedBy ?? 'System' },
+        { ...change, id: uid(), changedAt: todayKey(), changedBy: changedBy ?? 'System' },
       ])
     }
 
@@ -91,7 +92,7 @@ export function SprintProvider({ children }: { children: ReactNode }) {
         const id = uid()
         patch('sprints', (items) => [
           ...(items as Sprint[]),
-          { ...sprint, id, number: nextSprintNumber(items as Sprint[]), createdAt: new Date().toISOString().slice(0, 10) },
+          { ...sprint, id, number: nextSprintNumber(items as Sprint[]), createdAt: todayKey() },
         ])
         setActiveSprintId(id)
       },
@@ -104,7 +105,15 @@ export function SprintProvider({ children }: { children: ReactNode }) {
       startSprint: (id) => {
         patch('sprints', (items) =>
           (items as Sprint[]).map((item) =>
-            item.id === id ? { ...item, status: 'Active' as const } : { ...item, status: item.status === 'Active' ? 'Planned' : item.status },
+            item.id === id
+              ? {
+                  ...item,
+                  status: 'Active' as const,
+                  originalItemIds: item.originalItemIds.length
+                    ? item.originalItemIds
+                    : data.backlog.filter((b) => b.sprintId === id).map((b) => b.id),
+                }
+              : { ...item, status: item.status === 'Active' ? 'Planned' : item.status },
           ),
         )
       },
@@ -113,12 +122,11 @@ export function SprintProvider({ children }: { children: ReactNode }) {
         patch('sprints', (items) =>
           (items as Sprint[]).map((item) =>
             item.id === id
-              ? { ...item, status: 'Completed' as const, completedAt: new Date().toISOString().slice(0, 10), originalItemIds: item.originalItemIds.length ? item.originalItemIds : data.backlog.filter((b) => b.sprintId === id).map((b) => b.id) }
+              ? { ...item, status: 'Completed' as const, completedAt: todayKey(), originalItemIds: item.originalItemIds.length ? item.originalItemIds : data.backlog.filter((b) => b.sprintId === id).map((b) => b.id) }
               : item,
           ),
         )
         if (sprint) {
-          recordScope({ sprintId: id, type: 'Added' }, 'Sprint Close')
           patch('notifications', (items) => [
             ...(items as Notification[]),
             {
@@ -126,7 +134,7 @@ export function SprintProvider({ children }: { children: ReactNode }) {
               message: `Sprint ${sprint.number} marked complete.`,
               type: 'completion',
               read: false,
-              createdAt: new Date().toISOString().slice(0, 10),
+              createdAt: todayKey(),
               recipient: 'PM',
             },
           ])
@@ -145,10 +153,15 @@ export function SprintProvider({ children }: { children: ReactNode }) {
           {
             ...item,
             id,
-            createdAt: new Date().toISOString().slice(0, 10),
+            createdAt: todayKey(),
             sprintOrder: (items as BacklogItem[]).length,
             status: 'Backlog' as const,
             sprintId: undefined,
+            dependencies: Array.isArray(item.dependencies) ? item.dependencies : [],
+            labels: Array.isArray(item.labels) ? item.labels : [],
+            attachments: Array.isArray(item.attachments) ? item.attachments : [],
+            comments: Array.isArray(item.comments) ? item.comments : [],
+            acceptanceCriteria: Array.isArray(item.acceptanceCriteria) ? item.acceptanceCriteria : [],
           },
         ])
       },
@@ -206,7 +219,7 @@ export function SprintProvider({ children }: { children: ReactNode }) {
       },
       updateItemStatus: (itemId, status) => {
         const current = data.backlog.find((b) => b.id === itemId)
-        const now = new Date().toISOString().slice(0, 10)
+        const now = todayKey()
         const ts: Partial<BacklogItem> = { status }
         if (status === 'In Progress' && !current?.startedAt) ts.startedAt = now
         if (status === 'In Review') ts.reviewAt = now
@@ -214,6 +227,12 @@ export function SprintProvider({ children }: { children: ReactNode }) {
         if (status === 'Done') {
           ts.completedAt = now
           if (!current?.startedAt) ts.startedAt = now
+        }
+        if (status !== 'Done') ts.completedAt = undefined
+        if (status === 'Backlog' || status === 'To Do') {
+          ts.startedAt = undefined
+          ts.reviewAt = undefined
+          ts.qaAt = undefined
         }
         patch('backlog', (items) =>
           (items as BacklogItem[]).map((item) =>
@@ -228,7 +247,7 @@ export function SprintProvider({ children }: { children: ReactNode }) {
       addBlocker: (blocker) =>
         patch('blockers', (items) => [
           ...(items as Blocker[]),
-          { ...blocker, id: uid(), createdAt: new Date().toISOString().slice(0, 10) },
+          { ...blocker, id: uid(), createdAt: todayKey() },
         ]),
       resolveBlocker: (id, actualResolution) =>
         patch('blockers', (items) =>
@@ -269,7 +288,7 @@ export function SprintProvider({ children }: { children: ReactNode }) {
       addNotification: (n) =>
         patch('notifications', (items) => [
           ...(items as Notification[]),
-          { ...n, id: uid(), createdAt: new Date().toISOString().slice(0, 10) },
+          { ...n, id: uid(), createdAt: todayKey() },
         ]),
       markNotificationRead: (id) =>
         patch('notifications', (items) =>

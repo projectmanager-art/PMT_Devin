@@ -165,9 +165,18 @@ class SprintAnalytics {
 
     const activeTasksCount = totalTasks - cancelled;
     const completionPct = activeTasksCount > 0 ? (completed / activeTasksCount) * 100 : 0;
-    const variance = totalAct - totalEst;
-    const variancePct = totalEst > 0 ? (variance / totalEst) * 100 : 0;
-    const efficiencyPct = totalAct > 0 ? (totalEst / totalAct) * 100 : (totalEst === 0 ? 100 : 0);
+    // Share of the planned effort baseline that was actually delivered
+    // (completed est hours / total est hours) — used for both the
+    // efficiency metric and the variance fallback when no hours are logged.
+    const estDelivered = tasks.reduce((s, t) =>
+      s + ((t.status || '').toLowerCase() === 'completed' ? (t.est || 0) : 0), 0);
+    // Variance: logged-vs-planned when actuals exist; otherwise the
+    // undelivered portion of the committed plan (delivered est - total est).
+    const variance = totalAct > 0 ? totalAct - totalEst : estDelivered - totalEst;
+    const variancePct = totalEst > 0 ? (variance / totalEst) * 100 : (totalAct > 0 ? 100 : 0);
+    const efficiencyPct = totalAct > 0
+      ? (totalEst / totalAct) * 100
+      : (totalEst > 0 ? (estDelivered / totalEst) * 100 : 100);
 
     // Calculate Overall Sprint RAG
     let rag = 'GREEN';
@@ -223,7 +232,8 @@ class SprintAnalytics {
       teamSize: ownersSet.size,
       rag,
       ragScore: Math.max(0, Math.min(100, Math.round(ragScore))),
-      ragReasons
+      ragReasons,
+      hasActuals: totalAct > 0
     };
   }
 
@@ -254,7 +264,8 @@ class SprintAnalytics {
           medCount: 0,
           lowCount: 0,
           estHours: 0,
-          actHours: 0
+          actHours: 0,
+          estDoneHours: 0
         });
       }
 
@@ -276,24 +287,43 @@ class SprintAnalytics {
 
       e.estHours += t.est || 0;
       e.actHours += t.act || 0;
+      if (st === 'completed') e.estDoneHours += t.est || 0;
     });
 
     const employees = [];
-    const teamTotalAct = sprintMetrics.totalAct || 1;
-    const teamAvgAct = sprintMetrics.teamSize > 0 ? teamTotalAct / sprintMetrics.teamSize : teamTotalAct;
+    // Workload share & team average are computed over NAMED delivery
+    // resources only — 'Unassigned' hours must not distort the averages.
+    // When the source file logs no actual hours at all, planned (est)
+    // hours become the effort basis so distribution stays meaningful.
+    const hasActuals = tasks.some(t => (t.act || 0) > 0);
+    const effortOf = (e) => hasActuals ? e.actHours : e.estHours;
+    const namedEmps = Array.from(empMap.values()).filter(e => e.name !== 'Unassigned');
+    const teamTotalEffort = namedEmps.reduce((s, e) => s + effortOf(e), 0) || 1;
+    const namedCount = namedEmps.length;
+    const teamAvgEffort = namedCount > 0 ? teamTotalEffort / namedCount : 0;
 
     empMap.forEach(e => {
       const activeCount = e.totalAssigned - e.cancelled;
       const completionPct = activeCount > 0 ? (e.completed / activeCount) * 100 : 0;
-      const variance = e.actHours - e.estHours;
-      const variancePct = e.estHours > 0 ? (variance / e.estHours) * 100 : 0;
-      const efficiencyPct = e.actHours > 0 ? (e.estHours / e.actHours) * 100 : (e.estHours === 0 ? 100 : 0);
-      const workloadPct = (e.actHours / teamTotalAct) * 100;
+      // Variance: logged-vs-planned when actuals exist; otherwise the
+      // undelivered share of the person's committed plan (estDone - est).
+      const variance = hasActuals ? (e.actHours - e.estHours) : (e.estDoneHours - e.estHours);
+      // est=0 & act>0 means unestimated effort — treat as a full overrun
+      // instead of reporting a misleading 0% variance.
+      const variancePct = e.estHours > 0 ? (variance / e.estHours) * 100 : (e.actHours > 0 ? 100 : 0);
+      // Efficiency: est/act when logged hours exist; otherwise the share of
+      // that person's planned effort actually delivered (completed est / est).
+      const efficiencyPct = e.actHours > 0
+        ? (e.estHours / e.actHours) * 100
+        : (e.estHours > 0 ? (e.estDoneHours / e.estHours) * 100 : 100);
+      const workloadPct = (effortOf(e) / teamTotalEffort) * 100;
 
       // Workload classification
       let workloadStatus = 'Balanced';
-      if (teamAvgAct > 0) {
-        const ratio = e.actHours / teamAvgAct;
+      if (e.name === 'Unassigned') {
+        workloadStatus = 'Unassigned';
+      } else if (teamAvgEffort > 0) {
+        const ratio = effortOf(e) / teamAvgEffort;
         if (ratio < config.workloadThresholds.underloadedRatio) {
           workloadStatus = 'Underloaded';
         } else if (ratio > config.workloadThresholds.overloadedRatio) {
@@ -316,9 +346,11 @@ class SprintAnalytics {
       else if (variancePct < -50) effortScore = 90; // minor penalty if vastly under-estimated
 
       // 3. Priority Score (0 - 100)
-      // Checks completed high priority items vs total high priority items
+      // Checks completed high priority items vs total high priority items.
+      // Cancelled items are excluded — they are removed scope, not failures.
       let priorityScore = 100;
-      const highTasks = e.tasks.filter(t => (t.priority || '').toLowerCase() === 'high');
+      const highTasks = e.tasks.filter(t => (t.priority || '').toLowerCase() === 'high'
+        && (t.status || '').toLowerCase() !== 'cancelled');
       if (highTasks.length > 0) {
         const completedHigh = highTasks.filter(t => (t.status || '').toLowerCase() === 'completed').length;
         priorityScore = (completedHigh / highTasks.length) * 100;
@@ -361,17 +393,19 @@ class SprintAnalytics {
         name: e.name,
         completed: e.completed,
         totalAssigned: e.totalAssigned,
-        estHours: e.estHours,
-        actHours: e.actHours,
-        variance,
-        variancePct,
-        efficiencyPct,
-        completionPct,
+        estHours: Math.round(e.estHours * 10) / 10,
+        actHours: Math.round(e.actHours * 10) / 10,
+        variance: Math.round(variance * 10) / 10,
+        variancePct: Math.round(variancePct * 10) / 10,
+        efficiencyPct: Math.round(efficiencyPct * 10) / 10,
+        completionPct: Math.round(completionPct * 10) / 10,
+        hasActuals,
         blocked: e.blocked,
         inProgress: e.inProgress,
         highCount: e.highCount,
         tasks: e.tasks,
         workloadStatus,
+        workloadPct: Math.round(workloadPct * 10) / 10,
         rag
       });
 
@@ -450,27 +484,35 @@ class SprintAnalytics {
       }
     });
 
-    // Build Observation
+    // Build Observation — when the source sprint has no logged hours,
+    // statements describe planned load instead of fabricated effort figures.
+    const vTxt = `${emp.variance >= 0 ? '+' : ''}${emp.variance}h`;
+    const effortTxt = emp.hasActuals
+      ? `within ${emp.actHours}h against an estimated ${emp.estHours}h (${emp.efficiencyPct}% efficiency)`
+      : `against a planned ${emp.estHours}h (logged hours not tracked)`;
+
     if (emp.completionPct === 100 && emp.variance <= 0) {
-      observation = `${emp.name} achieved a 100% completion rate across ${emp.totalAssigned} assigned tasks within ${emp.actHours}h against an estimated ${emp.estHours}h (${emp.efficiencyPct}% efficiency), demonstrating superior planning discipline and output.`;
+      observation = `${emp.name} achieved a 100% completion rate across ${emp.totalAssigned} assigned tasks ${effortTxt}, demonstrating superior planning discipline and output.`;
       recommendation = `Recognize stellar sprint execution; consider assigning complex architectural ownership or cross-mentoring in upcoming sprints.`;
     } else if (emp.completionPct >= 85 && emp.variancePct <= 15) {
-      observation = `${emp.name} delivered ${emp.completed} of ${emp.totalAssigned} tasks (${emp.completionPct}%) with controlled effort variance (+${emp.variance}h, ${emp.efficiencyPct}% efficiency), meeting delivery milestones reliably.`;
+      observation = `${emp.name} delivered ${emp.completed} of ${emp.totalAssigned} tasks (${emp.completionPct}%) ${emp.hasActuals ? `with controlled effort variance (${vTxt}, ${emp.efficiencyPct}% efficiency)` : 'against planned capacity'}, meeting delivery milestones reliably.`;
       recommendation = `Maintain current capacity allocation and support resolution of remaining in-flight items.`;
     } else if (emp.blocked > 0) {
-      observation = `${emp.name} logged ${emp.actHours}h but is currently obstructed by ${emp.blocked} blocked task(s), notably impacting overall sprint throughput.`;
+      observation = `${emp.name} ${emp.hasActuals ? `logged ${emp.actHours}h but` : ''} is currently obstructed by ${emp.blocked} blocked task(s), notably impacting overall sprint throughput.`;
       recommendation = `Lead PM should immediately escalate external dependencies and unblock technical prerequisites to prevent delivery slippage.`;
     } else if (emp.variancePct > 25 && emp.completionPct < 80) {
-      observation = `${emp.name} experienced noticeable effort overruns (+${emp.variance}h / +${emp.variancePct}%) while completing ${emp.completed} of ${emp.totalAssigned} tasks, indicating unforeseen scope complexity or estimation drift.`;
+      observation = `${emp.name} experienced noticeable effort overruns (${vTxt} / ${emp.variancePct >= 0 ? '+' : ''}${emp.variancePct}%) while completing ${emp.completed} of ${emp.totalAssigned} tasks, indicating unforeseen scope complexity or estimation drift.`;
       recommendation = `Conduct a targeted post-sprint estimation review to calibrate task sizing and provide paired support on complex modules.`;
     } else if (emp.workloadStatus === 'Overloaded') {
-      observation = `${emp.name} carried a high workload concentration of ${emp.actHours}h (${emp.workloadPct}% of team total), completing ${emp.completed}/${emp.totalAssigned} tasks under elevated delivery pressure.`;
+      observation = `${emp.name} carried a high ${emp.hasActuals ? 'workload' : 'planned-load'} concentration of ${emp.hasActuals ? emp.actHours : emp.estHours}h (${emp.workloadPct}% of team ${emp.hasActuals ? 'total' : 'estimate'}), completing ${emp.completed}/${emp.totalAssigned} tasks under elevated delivery pressure.`;
       recommendation = `Rebalance task distribution in next sprint planning to prevent burnout and mitigate single-point dependency risk.`;
     } else if (emp.workloadStatus === 'Underloaded') {
-      observation = `${emp.name} was allocated ${emp.actHours}h (${emp.completed}/${emp.totalAssigned} completed), operating below average team capacity utilization.`;
+      observation = `${emp.name} was allocated ${emp.hasActuals ? emp.actHours : emp.estHours}h${emp.hasActuals ? '' : ' planned'} (${emp.completed}/${emp.totalAssigned} completed), operating below average team capacity utilization.`;
       recommendation = `Assign higher-leverage sprint backlog items or allocate available bandwidth to secondary QA / technical review.`;
     } else {
-      observation = `${emp.name} logged ${emp.actHours}h against ${emp.estHours}h planned, completing ${emp.completed} tasks with an overall efficiency of ${emp.efficiencyPct}%.`;
+      observation = emp.hasActuals
+        ? `${emp.name} logged ${emp.actHours}h against ${emp.estHours}h planned, completing ${emp.completed} tasks with an overall efficiency of ${emp.efficiencyPct}%.`
+        : `${emp.name} completed ${emp.completed} of ${emp.totalAssigned} tasks against a ${emp.estHours}h plan; logged hours were not tracked for this sprint.`;
       recommendation = `Continue monitoring task velocity and refine estimation granularity during backlog grooming.`;
     }
 
@@ -484,8 +526,18 @@ class SprintAnalytics {
    * Workload Analysis Metrics & Distribution Score
    */
   static calculateWorkload(tasks, config, employees) {
-    const totalHours = employees.reduce((sum, e) => sum + e.actHours, 0);
-    const count = employees.length || 1;
+    // Workload distribution stats cover named delivery resources only;
+    // 'Unassigned' hours are tracked separately, not blended into averages.
+    const namedEmployees = employees.filter(e => e.name !== 'Unassigned');
+    const unassignedEmployees = employees.filter(e => e.name === 'Unassigned');
+    // When no actual hours exist anywhere in the sprint, distribution is
+    // measured on planned (est) hours so the analysis stays meaningful.
+    const hasActuals = employees.some(e => e.actHours > 0);
+    const hrs = (e) => hasActuals ? e.actHours : e.estHours;
+    const unassignedHours = unassignedEmployees.reduce((s, e) => s + hrs(e), 0);
+
+    const totalHours = namedEmployees.reduce((sum, e) => sum + hrs(e), 0);
+    const count = namedEmployees.length || 1;
     const avgHours = totalHours / count;
 
     let maxHours = 0;
@@ -493,13 +545,14 @@ class SprintAnalytics {
     let maxEmployee = null;
     let minEmployee = null;
 
-    employees.forEach(e => {
-      if (e.actHours > maxHours) {
-        maxHours = e.actHours;
+    namedEmployees.forEach(e => {
+      const h = hrs(e);
+      if (h > maxHours) {
+        maxHours = h;
         maxEmployee = e.name;
       }
-      if (e.actHours < minHours) {
-        minHours = e.actHours;
+      if (h < minHours) {
+        minHours = h;
         minEmployee = e.name;
       }
     });
@@ -507,16 +560,19 @@ class SprintAnalytics {
     if (minHours === Infinity) minHours = 0;
 
     // Calculate Standard Deviation for Imbalance Score
-    const varianceSum = employees.reduce((sum, e) => sum + Math.pow(e.actHours - avgHours, 2), 0);
+    const varianceSum = namedEmployees.reduce((sum, e) => sum + Math.pow(hrs(e) - avgHours, 2), 0);
     const stdDev = Math.sqrt(varianceSum / count);
     const imbalanceScore = avgHours > 0 ? Math.min(100, Math.round((stdDev / avgHours) * 100)) : 0;
 
     const underloadedList = employees.filter(e => e.workloadStatus === 'Underloaded');
     const balancedList = employees.filter(e => e.workloadStatus === 'Balanced');
     const overloadedList = employees.filter(e => e.workloadStatus === 'Overloaded');
+    const unassignedList = employees.filter(e => e.workloadStatus === 'Unassigned');
 
     return {
       totalHours: Math.round(totalHours * 10) / 10,
+      effortBasis: hasActuals ? 'act' : 'est',
+      unassignedHours: Math.round(unassignedHours * 10) / 10,
       avgHours: Math.round(avgHours * 10) / 10,
       maxHours: Math.round(maxHours * 10) / 10,
       minHours: Math.round(minHours * 10) / 10,
@@ -526,10 +582,53 @@ class SprintAnalytics {
       underloadedCount: underloadedList.length,
       balancedCount: balancedList.length,
       overloadedCount: overloadedList.length,
+      unassignedCount: unassignedList.length,
       underloadedList,
       balancedList,
-      overloadedList
+      overloadedList,
+      unassignedList
     };
+  }
+
+  /**
+   * Resolves a task item string to its project name. Exposed so the UI
+   * (project filter dropdowns) groups tasks exactly like the analysis.
+   */
+  static extractProjectName(itemStr) {
+    const str = itemStr || '';
+    // Strip a leading tracker ticket id ("SCRUM-22 -", "JIRA-101:") so the
+    // project segment is used instead of every task becoming its own project.
+    const working = str.replace(/^\s*[A-Za-z]{2,}-\d+\s*[-–—:]?\s*/, '') || str;
+
+    if (working.includes('|')) {
+      const GENERIC = new Set(['qa', 'testing', 'test', 'dev', 'development', 'design', 'review', 'planning']);
+      const segs = working.split('|')
+        .map(s => s.trim())
+        .filter(s => s && !GENERIC.has(s.toLowerCase()));
+      if (segs.length) return segs[0];
+    }
+    const dashSegs = working.split(/\s+[-–—]\s+/).map(s => s.trim()).filter(Boolean);
+    if (dashSegs.length > 1) {
+      return dashSegs[0];
+    }
+    const lower = str.toLowerCase();
+    if (lower.includes('vee networks')) return 'Vee Networks';
+    if (lower.includes('allenhouse')) return 'Allenhouse Group';
+    if (lower.includes('fastranking')) return 'Fastranking';
+    if (lower.includes('vee repairs')) return 'Vee Repairs';
+    if (lower.includes('sparta crm')) return 'SPARTA CRM';
+    if (lower.includes('sparta website') || lower.includes('sparta telecom')) return 'Sparta Website';
+    if (lower.includes('reading refurbishment')) return 'Reading Refurbishment';
+    if (lower.includes('sofiya design')) return 'Sofiya Design Academy';
+    if (lower.includes('88 driving')) return '88 Driving School';
+    if (lower.includes('seo audit') || lower.includes('catesby england')) return 'SEO & Retainers';
+    if (lower.includes('dma phase')) return 'DMA Implementation';
+    if (lower.includes('shopify') || lower.includes('patrick shoes')) return 'Shopify E-Commerce';
+    if (lower.includes('generic cms')) return 'Generic CMS';
+    if (lower.includes('reading design')) return 'Reading Design Studio';
+    if (lower.includes('optimum global')) return 'Optimum Global Care';
+    if (lower.includes('nomads trade')) return 'Nomads Trade Website';
+    return working.slice(0, 24).trim() || 'General Delivery';
   }
 
   /**
@@ -539,38 +638,13 @@ class SprintAnalytics {
     const projMap = new Map();
 
     tasks.forEach(t => {
-      let projectName = 'General Delivery';
-      const itemStr = t.item || '';
+      const projectName = this.extractProjectName(t.item);
+      // Merge case variants ("Footwear Depot" / "Footwear depot") — first-seen
+      // casing wins for display.
+      const projKey = projectName.toLowerCase();
 
-      // Pattern: "Project Name | Activity" or "Project Name - Activity"
-      if (itemStr.includes('|')) {
-        projectName = itemStr.split('|')[0].trim();
-      } else if (itemStr.includes(' - ')) {
-        projectName = itemStr.split(' - ')[0].trim();
-      } else {
-        // Specific keyword checks
-        const lower = itemStr.toLowerCase();
-        if (lower.includes('vee networks')) projectName = 'Vee Networks';
-        else if (lower.includes('allenhouse')) projectName = 'Allenhouse Group';
-        else if (lower.includes('fastranking')) projectName = 'Fastranking';
-        else if (lower.includes('vee repairs')) projectName = 'Vee Repairs';
-        else if (lower.includes('sparta crm')) projectName = 'SPARTA CRM';
-        else if (lower.includes('sparta website') || lower.includes('sparta telecom')) projectName = 'Sparta Website';
-        else if (lower.includes('reading refurbishment')) projectName = 'Reading Refurbishment';
-        else if (lower.includes('sofiya design')) projectName = 'Sofiya Design Academy';
-        else if (lower.includes('88 driving')) projectName = '88 Driving School';
-        else if (lower.includes('seo audit') || lower.includes('catesby england')) projectName = 'SEO & Retainers';
-        else if (lower.includes('dma phase')) projectName = 'DMA Implementation';
-        else if (lower.includes('shopify') || lower.includes('patrick shoes')) projectName = 'Shopify E-Commerce';
-        else if (lower.includes('generic cms')) projectName = 'Generic CMS';
-        else if (lower.includes('reading design')) projectName = 'Reading Design Studio';
-        else if (lower.includes('optimum global')) projectName = 'Optimum Global Care';
-        else if (lower.includes('nomads trade')) projectName = 'Nomads Trade Website';
-        else projectName = itemStr.slice(0, 24).trim();
-      }
-
-      if (!projMap.has(projectName)) {
-        projMap.set(projectName, {
+      if (!projMap.has(projKey)) {
+        projMap.set(projKey, {
           name: projectName,
           tasks: [],
           totalTasks: 0,
@@ -581,7 +655,7 @@ class SprintAnalytics {
         });
       }
 
-      const p = projMap.get(projectName);
+      const p = projMap.get(projKey);
       p.tasks.push(t);
       p.totalTasks++;
       if ((t.status || '').toLowerCase() === 'completed') p.completed++;
@@ -594,7 +668,7 @@ class SprintAnalytics {
     projMap.forEach(p => {
       const completionPct = p.totalTasks > 0 ? (p.completed / p.totalTasks) * 100 : 0;
       const variance = p.actHours - p.estHours;
-      const variancePct = p.estHours > 0 ? (variance / p.estHours) * 100 : 0;
+      const variancePct = p.estHours > 0 ? (variance / p.estHours) * 100 : (p.actHours > 0 ? 100 : 0);
 
       let rag = 'GREEN';
       if (completionPct < 60 || variancePct > 30) rag = 'RED';
@@ -644,7 +718,7 @@ class SprintAnalytics {
       const data = priorities[p];
       const completionPct = data.count > 0 ? (data.completed / data.count) * 100 : 0;
       const variance = data.act - data.est;
-      const variancePct = data.est > 0 ? (variance / data.est) * 100 : 0;
+      const variancePct = data.est > 0 ? (variance / data.est) * 100 : (data.act > 0 ? 100 : 0);
       result.push({
         priority: p,
         taskCount: data.count,
@@ -731,6 +805,22 @@ class SprintAnalytics {
       });
     });
 
+    // 5. Missing actual-effort data (planning-only import)
+    if (tasks.length > 0 && tasks.every(t => !(t.act > 0))) {
+      risks.push({
+        id: `RSK-${String(riskCounter++).padStart(3, '0')}`,
+        type: 'Data Quality',
+        task: 'No actual logged hours supplied in the sprint data',
+        owner: 'Sprint Leadership',
+        priority: 'Medium',
+        impact: 'Medium',
+        severity: 'Low',
+        rag: 'AMBER',
+        description: `The sprint export contains 0h of logged effort across ${tasks.length} deliverables; efficiency, variance and workload metrics reflect planned estimates only.`,
+        action: `Capture daily logged hours in the tracker and re-import to unlock effort/variance intelligence.`
+      });
+    }
+
     return risks;
   }
 
@@ -745,7 +835,9 @@ class SprintAnalytics {
 
     let leadText = `Sprint execution concluded with an overall **${rag}** health rating, achieving a **${completionPct}% completion rate** (${completed} of ${totalTasks} committed deliverables resolved).`;
     
-    let effortText = `Total engineering effort recorded stood at **${totalAct}h** against a planned baseline of **${totalEst}h**, resulting in a net variance of **${variance >= 0 ? '+' : ''}${variance}h** and an aggregate team efficiency of **${efficiencyPct}%**.`;
+    let effortText = sprintMetrics.hasActuals
+      ? `Total engineering effort recorded stood at **${totalAct}h** against a planned baseline of **${totalEst}h**, resulting in a net variance of **${variance >= 0 ? '+' : ''}${variance}h** and an aggregate team efficiency of **${efficiencyPct}%**.`
+      : `A planned effort baseline of **${totalEst}h** was committed across the sprint scope, of which the team delivered **${efficiencyPct}%** by estimated effort, leaving **${Math.abs(Math.round(variance * 10) / 10)}h** of committed scope undelivered. Actual logged hours were not supplied in the source data, so effort overrun/underrun is not measurable for this iteration.`;
 
     let teamText = `Resource distribution across ${teamSize} active delivery resources showed ${greenEmployees} members maintaining optimal Green RAG velocity, while ${redEmployees} contributor(s) experienced delivery hurdles or severe capacity constraints.`;
 
@@ -800,6 +892,7 @@ class SprintAnalytics {
     const addNum = (v) => {
       if (typeof v !== 'number' || isNaN(v)) return;
       allowedNumbers.add(String(v));
+      allowedNumbers.add(String(Math.abs(v)));
       allowedNumbers.add(String(Math.round(v * 10) / 10));
       allowedNumbers.add(String(Math.round(v)));
       allowedNumbers.add(String(Math.floor(v)));
@@ -839,6 +932,9 @@ class SprintAnalytics {
       const avg = metrics.totalAct / metrics.teamSize;
       addNum(avg);
       allowedNumbers.add(String(avg.toFixed(1)));
+      const estAvg = metrics.totalEst / metrics.teamSize;
+      addNum(estAvg);
+      allowedNumbers.add(String(estAvg.toFixed(1)));
     }
     if (metrics) {
       addNum(metrics.totalTasks - metrics.completed);
@@ -868,7 +964,13 @@ class SprintAnalytics {
     const addNumericTokens = (items) => {
       (items || []).forEach(s => {
         const matches = String(s).match(/\d+(\.\d+)?/g);
-        if (matches) matches.forEach(n => allowedNumbers.add(n));
+        if (matches) matches.forEach(n => {
+          allowedNumbers.add(n);
+          // Ticket ids like "SCRUM-37" / "JIRA-123" are picked up by the
+          // sign-aware validator regex as "-37" — allow the signed variants.
+          allowedNumbers.add(`-${n}`);
+          allowedNumbers.add(`+${n}`);
+        });
       });
     };
     addNumericTokens(allowedTaskNames);
@@ -1214,8 +1316,12 @@ class SprintAnalytics {
       whatDidNotGoWell,
       keyAchievements,
       bottlenecks,
-      resourceUtilizationSummary: `Delivery-team effort totaled ${metrics.totalAct}h across ${metrics.teamSize} active delivery resources. Average individual effort was ${(metrics.totalAct / (metrics.teamSize || 1)).toFixed(1)}h. Sprint leadership hours are tracked separately and excluded from capacity.`,
-      estimationAccuracySummary: `Planned: ${metrics.totalEst}h vs Actual: ${metrics.totalAct}h (Variance: ${metrics.variance >= 0 ? '+' : ''}${metrics.variance}h, Efficiency: ${metrics.efficiencyPct}%).`,
+      resourceUtilizationSummary: metrics.hasActuals
+        ? `Delivery-team effort totaled ${metrics.totalAct}h across ${metrics.teamSize} active delivery resources. Average individual effort was ${(metrics.totalAct / (metrics.teamSize || 1)).toFixed(1)}h. Sprint leadership hours are tracked separately and excluded from capacity.`
+        : `Delivery effort was planned at ${metrics.totalEst}h across ${metrics.teamSize} delivery resources (average ${(metrics.totalEst / (metrics.teamSize || 1)).toFixed(1)}h each). Actual logged hours were not tracked for this sprint. Sprint leadership effort is excluded from capacity.`,
+      estimationAccuracySummary: metrics.hasActuals
+        ? `Planned: ${metrics.totalEst}h vs Actual: ${metrics.totalAct}h (Variance: ${metrics.variance >= 0 ? '+' : ''}${metrics.variance}h, Efficiency: ${metrics.efficiencyPct}%).`
+        : `Planned baseline: ${metrics.totalEst}h; delivered scope: ${metrics.efficiencyPct}% of planned effort. Actual hours were not logged in the source data — variance is not measurable for this sprint.`,
       recommendations,
       nextSprintActions
     };

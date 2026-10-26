@@ -56,9 +56,9 @@ const severityColors = {
   Critical: '#dc2626',
 }
 
-function RaidModal({ open, onClose, editing }: { open: boolean; onClose: () => void; editing?: RaidItem | null }) {
+export function RaidModal({ open, onClose, editing, defaultProjectId }: { open: boolean; onClose: () => void; editing?: RaidItem | null; defaultProjectId?: string }) {
   const { addRisk, updateRisk, projects, team } = useApp()
-  const empty = useMemo(() => emptyRaid(projects[0]?.id ?? '', team[0]?.name ?? ''), [projects, team])
+  const empty = useMemo(() => emptyRaid(defaultProjectId ?? projects[0]?.id ?? '', team[0]?.name ?? ''), [defaultProjectId, projects, team])
   const [form, setForm] = useState<Partial<RaidItem>>(() => (editing ? { ...editing } : { ...empty }))
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -85,8 +85,10 @@ function RaidModal({ open, onClose, editing }: { open: boolean; onClose: () => v
     if (!payload.projectId) nextErrors.projectId = 'Select a project.'
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length) return
-    if (editing) updateRisk(editing.id, form)
-    else addRisk(payload as any)
+    if (editing) {
+      const { id: _omit, ...rest } = payload as any
+      updateRisk(editing.id, rest)
+    } else addRisk(payload as any)
     onClose()
   }
 
@@ -105,7 +107,7 @@ function RaidModal({ open, onClose, editing }: { open: boolean; onClose: () => v
       }
     >
       <FormErrorSummary errors={errors} />
-      <div className="grid max-h-[68vh] grid-cols-1 gap-4 overflow-y-auto pr-1 md:grid-cols-2">
+      <div className="form-stagger grid max-h-[68vh] grid-cols-1 gap-4 overflow-y-auto pr-1 md:grid-cols-2">
         <Field label="Project" required error={errors.projectId} className="md:col-span-2">
           <select className={errors.projectId ? invalidInputClass : inputClass} aria-invalid={!!errors.projectId} value={form.projectId ?? ''} onChange={(e) => update({ projectId: e.target.value })}>
             <option value="">Select a project</option>
@@ -493,7 +495,7 @@ export function Risks() {
         )}
       </Card>
 
-      <RaidModal open={modalOpen} editing={editing} onClose={() => setModalOpen(false)} />
+      {modalOpen && <RaidModal open editing={editing} onClose={() => { setModalOpen(false); setEditing(null) }} />}
     </div>
   )
 }

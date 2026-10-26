@@ -54,16 +54,18 @@ function actionItemKey(index: number, text: string) {
   return `${index}:${text.trim()}`
 }
 
-function ScheduleMeetingModal({
+export function ScheduleMeetingModal({
   open,
   onClose,
   editing,
   defaultDate,
+  defaultProjectId,
 }: {
   open: boolean
   onClose: () => void
   editing?: Meeting | null
   defaultDate: string
+  defaultProjectId?: string
 }) {
   const { addMeeting, updateMeeting, projects, clients, tasks, team } = useApp()
   const currentTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
@@ -73,7 +75,7 @@ function ScheduleMeetingModal({
     description: editing?.description ?? '',
     type: editing?.type ?? ('Client meeting' as MeetingType),
     clientId: editing?.clientId ?? '',
-    projectId: editing?.projectId ?? '',
+    projectId: editing?.projectId ?? defaultProjectId ?? '',
     taskId: editing?.taskId ?? '',
     date: editing?.date ?? defaultDate,
     startTime: editing?.startTime ?? to24Hour(editing?.time ?? ''),
@@ -170,7 +172,7 @@ function ScheduleMeetingModal({
       footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button onClick={submit}>{editing ? 'Save changes' : 'Save meeting'}</Button></>}
     >
       <FormErrorSummary errors={errors} />
-      <div className="grid max-h-[72vh] grid-cols-1 gap-4 overflow-y-auto pr-1 md:grid-cols-2">
+      <div className="form-stagger grid max-h-[72vh] grid-cols-1 gap-4 overflow-y-auto pr-1 md:grid-cols-2">
         <Field label="Meeting title" required error={errors.title} className="md:col-span-2">
           <input className={errors.title ? invalidInputClass : inputClass} aria-invalid={!!errors.title} value={form.title} onChange={(e) => update('title', e.target.value)} placeholder="e.g. Atlas project kickoff" />
         </Field>
@@ -333,7 +335,7 @@ function MiniCalendar({
           <button className="rounded p-1 text-muted hover:bg-[#f0f1ed]" title={expanded ? 'Collapse calendar' : 'Expand calendar'} onClick={onToggleExpanded}><ExternalLink size={13} /></button>
         </div>
       </div>
-      <div className="grid grid-cols-7 gap-1">
+      <div key={`${month.toISOString()}-${view}`} className="page-enter grid grid-cols-7 gap-1">
         {weekdays.map((day) => <div key={day} className="pb-1 text-center text-[9px] font-semibold uppercase text-muted">{day}</div>)}
         {days.map((date) => {
           const key = dateKey(date)
@@ -572,7 +574,9 @@ export function Meetings() {
 
       <div className={`grid gap-5 ${expandedCalendar ? 'grid-cols-1' : 'lg:grid-cols-[minmax(0,1fr)_370px]'}`}>
         {expandedCalendar && (
-          <MiniCalendar meetings={meetings} selectedDate={selectedDate} month={month} onSelectDate={selectDate} onChangeMonth={setMonth} onSelectMeeting={setSelectedMeeting} expanded={expandedCalendar} view={view} onViewChange={setView} onToggleExpanded={() => setExpandedCalendar(false)} onSchedule={openCreate} />
+          <div className="section-enter">
+            <MiniCalendar meetings={meetings} selectedDate={selectedDate} month={month} onSelectDate={selectDate} onChangeMonth={setMonth} onSelectMeeting={setSelectedMeeting} expanded={expandedCalendar} view={view} onViewChange={setView} onToggleExpanded={() => setExpandedCalendar(false)} onSchedule={openCreate} />
+          </div>
         )}
         <section className="min-w-0 space-y-5">
           <Card className="pb-4">
@@ -596,7 +600,7 @@ export function Meetings() {
           {filteredMeetings.length === 0 ? (
             <EmptyState title="No meetings match" description="Schedule a meeting or adjust the current search and filters." action={<Button onClick={() => openCreate()}>Schedule meeting</Button>} />
           ) : (
-            <div className="space-y-3">
+            <div key={tab} className="page-enter space-y-3">
               {filteredMeetings.map((meeting) => {
                 const project = projects.find((item) => item.id === meeting.projectId)
                 const client = clients.find((item) => item.id === meeting.clientId)

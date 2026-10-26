@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useApp } from '../store'
+import { dateKey, todayKey } from '../lib/dates'
 import { Badge, Card, CardTitle } from '../components/ui'
 
 const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -39,7 +40,7 @@ export function CalendarPage() {
     return map
   }, [tasks, meetings, projects])
 
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayKey()
 
   return (
     <div className="mx-auto w-full max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8">
@@ -71,12 +72,12 @@ export function CalendarPage() {
       <Card>
         <CardTitle title={`${currentDate.toLocaleDateString('en-US', { month: 'long' })} ${currentDate.getFullYear()}`} subtitle="Tasks, meetings and deadlines" />
         <div className="overflow-x-auto">
-        <div className="grid min-w-[560px] grid-cols-7 gap-1.5">
+        <div key={currentDate.toISOString()} className="page-enter grid min-w-[560px] grid-cols-7 gap-1.5">
           {dayLabels.map((day) => (
             <div key={day} className="pb-2 text-center text-[10px] font-semibold uppercase tracking-wider text-muted">{day}</div>
           ))}
           {days.map(({ date, inMonth }, i) => {
-            const iso = date.toISOString().slice(0, 10)
+            const iso = dateKey(date)
             const events = eventsByDate.get(iso) ?? []
             return (
               <div

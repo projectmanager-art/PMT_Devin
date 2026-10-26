@@ -225,17 +225,14 @@ class SprintParser {
       if (this.columnMapping.id === -1 && (h === '#' || h === 'id' || h === 'taskid' || h === 'no' || h === 'sno' || h === 'itemno')) {
         this.columnMapping.id = colIdx;
       }
-      // Item / Task Name
-      else if (this.columnMapping.item === -1 && (h.includes('item') || h.includes('task') || h.includes('activity') || h.includes('summary') || h.includes('description') || h.includes('title') || h.includes('name'))) {
-        this.columnMapping.item = colIdx;
+      // Owner(s) — checked before the generic 'name'/'title' item keywords so
+      // headers like "Owner Name" or "Assigned To" never steal the item column.
+      else if (this.columnMapping.owner === -1 && (h.includes('owner') || h.includes('assignee') || h.includes('assigned') || h.includes('resource') || h.includes('employee') || h.includes('person') || h.includes('member') || h.includes('responsible') || h === 'dev' || h === 'developer' || h === 'by')) {
+        this.columnMapping.owner = colIdx;
       }
       // Priority
       else if (this.columnMapping.priority === -1 && (h.includes('prior') || h.includes('severity') || h.includes('urgency') || h.includes('prio'))) {
         this.columnMapping.priority = colIdx;
-      }
-      // Owner(s)
-      else if (this.columnMapping.owner === -1 && (h.includes('owner') || h.includes('assignee') || h.includes('resource') || h.includes('employee') || h.includes('person') || h.includes('dev') || h.includes('member'))) {
-        this.columnMapping.owner = colIdx;
       }
       // Estimated Hours
       else if (this.columnMapping.est === -1 && (h.includes('est') || h.includes('plan') || h.includes('budget') || h.includes('target') || h.includes('quoted'))) {
@@ -248,6 +245,12 @@ class SprintParser {
       // Status
       else if (this.columnMapping.status === -1 && (h.includes('stat') || h.includes('state') || h.includes('stage') || h.includes('progress') || h.includes('condition'))) {
         this.columnMapping.status = colIdx;
+      }
+      // Item / Task Name — checked last: its keywords ('name', 'title',
+      // 'description') are the most generic and would otherwise hijack
+      // columns like "Owner Name" or "Task Status".
+      else if (this.columnMapping.item === -1 && (h.includes('item') || h.includes('task') || h.includes('activity') || h.includes('summary') || h.includes('description') || h.includes('title') || h.includes('name') || h.includes('story') || h.includes('workitem'))) {
+        this.columnMapping.item = colIdx;
       }
     });
 
@@ -262,6 +265,45 @@ class SprintParser {
    */
   setMapping(field, colIdx) {
     this.columnMapping[field] = parseInt(colIdx, 10);
+  }
+
+  /**
+   * Extracts sprint title and date range from the preamble rows above the
+   * detected header row — e.g. "Sprint 4 — SprintIQ Reporting Import" and
+   * "Sprint dates: 05-Oct-2026 to 26-Oct-2026".
+   */
+  extractFileMetadata() {
+    const meta = { title: '', startDate: '', endDate: '' };
+    const MONTHS = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
+    const parseDate = (d, m, y) => {
+      const dd = parseInt(d, 10);
+      const mm = MONTHS[String(m).slice(0, 3).toLowerCase()] || parseInt(m, 10);
+      const yy = String(y || '').length === 2 ? 2000 + parseInt(y, 10) : parseInt(y || new Date().getFullYear(), 10);
+      const dt = new Date(yy, (mm || 1) - 1, dd);
+      if (isNaN(dt.getTime()) || !dd || !mm) return '';
+      return `${yy}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
+    };
+
+    const limit = Math.max(0, this.headerRowIndex || 0);
+    for (let i = 0; i < limit; i++) {
+      const cells = (this.rawRows[i] || []).map(c => String(c || '').trim()).filter(Boolean);
+      if (!cells.length) continue;
+      const line = cells.join(' ');
+      if (!meta.title && /sprint/i.test(line) && !/dates?|important|source/i.test(line)) {
+        meta.title = line;
+      }
+      const dm = line.match(/dates?\s*[:\-]\s*(\d{1,2})[\s\-\/]([A-Za-z]{3,9}|\d{1,2})[\s\-\/](\d{2,4})\s*(?:to|–|—|-)\s*(\d{1,2})[\s\-\/]([A-Za-z]{3,9}|\d{1,2})[\s\-\/](\d{2,4})/i);
+      if (dm) {
+        meta.startDate = parseDate(dm[1], dm[2], dm[3]);
+        meta.endDate = parseDate(dm[4], dm[5], dm[6]);
+      }
+    }
+
+    if (!meta.title) {
+      const first = (this.rawRows[0] || []).map(c => String(c || '').trim()).filter(Boolean);
+      if (first.length) meta.title = first[0];
+    }
+    return meta;
   }
 
   /**

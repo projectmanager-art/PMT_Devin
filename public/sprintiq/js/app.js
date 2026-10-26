@@ -35,9 +35,41 @@ class SprintIQApp {
     this.loadInitialSprints();
     this.bindEvents();
     this.renderSprintSelector();
-    this.switchSprint(this.sprints[0].id);
+    if (this.sprints.length) {
+      this.switchSprint(this.sprints[0].id);
+    } else {
+      this.renderEmptyState();
+    }
     this.initIcons();
     this.initStaggeredNav();
+  }
+
+  renderEmptyState() {
+    document.body.classList.add('no-sprint-data');
+    document.querySelectorAll('.view-panel').forEach(panel => {
+      panel.style.display = 'none';
+    });
+    const main = document.querySelector('.main-content');
+    if (!main || document.getElementById('sprintiq-empty-state')) return;
+    const empty = document.createElement('div');
+    empty.id = 'sprintiq-empty-state';
+    empty.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;text-align:center;padding:40px 20px;';
+    empty.innerHTML = `
+      <div style="width:72px;height:72px;border-radius:20px;background:var(--accent-red-bg);display:flex;align-items:center;justify-content:center;margin-bottom:20px;">
+        <i data-lucide="upload-cloud" style="width:32px;height:32px;color:var(--accent-red);"></i>
+      </div>
+      <h2 style="font-size:20px;font-weight:700;color:var(--text-primary);margin:0 0 8px;">No sprint data yet</h2>
+      <p style="font-size:13px;color:var(--text-secondary);max-width:420px;margin:0 0 24px;">Import a sprint report (Excel, CSV or Google Sheets) to generate your SprintIQ analytics dashboard.</p>
+      <button class="btn btn-primary" id="empty-state-upload-btn"><i data-lucide="upload-cloud"></i> Upload Sprint Data</button>
+    `;
+    const pageBody = main.querySelector('.page-body');
+    if (pageBody && pageBody.parentNode) {
+      pageBody.parentNode.insertBefore(empty, pageBody.nextSibling);
+    } else {
+      main.appendChild(empty);
+    }
+    const btn = document.getElementById('empty-state-upload-btn');
+    if (btn) btn.addEventListener('click', () => document.getElementById('btn-open-upload')?.click());
   }
 
   initStaggeredNav() {
@@ -76,7 +108,8 @@ class SprintIQApp {
 
   loadInitialSprints() {
     try {
-      const saved = localStorage.getItem('sprintiq_custom_sprints');
+      localStorage.removeItem('sprintiq_custom_sprints'); // legacy key cleanup
+      const saved = localStorage.getItem('sprintiq_sprints_v2');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -86,13 +119,13 @@ class SprintIQApp {
       }
     } catch (e) {}
 
-    // Fallback to sample sprints
-    this.sprints = window.SprintIQSampleData.getSampleSprints();
+    // Clean slate — no bundled demo data; user imports their own sprints.
+    this.sprints = [];
   }
 
   saveCustomSprints() {
     try {
-      localStorage.setItem('sprintiq_custom_sprints', JSON.stringify(this.sprints));
+      localStorage.setItem('sprintiq_sprints_v2', JSON.stringify(this.sprints));
     } catch (e) {}
   }
 
@@ -113,6 +146,15 @@ class SprintIQApp {
   switchSprint(sprintId) {
     const sprint = this.sprints.find(s => s.id === sprintId) || this.sprints[0];
     if (!sprint) return;
+
+    // Clear the no-data empty state once a sprint is loaded
+    document.body.classList.remove('no-sprint-data');
+    const emptyState = document.getElementById('sprintiq-empty-state');
+    if (emptyState) {
+      emptyState.remove();
+      const panel = document.getElementById(this.currentView);
+      if (panel) panel.style.display = 'block';
+    }
 
     this.activeSprintId = sprint.id;
     
@@ -140,6 +182,11 @@ class SprintIQApp {
 
     if (this.filters.owner) {
       filteredTasks = filteredTasks.filter(t => t.owner === this.filters.owner);
+    }
+    if (this.filters.project) {
+      filteredTasks = filteredTasks.filter(t =>
+        window.SprintAnalytics.extractProjectName(t.item) === this.filters.project
+      );
     }
     if (this.filters.priority) {
       filteredTasks = filteredTasks.filter(t => (t.priority || '').toLowerCase() === this.filters.priority.toLowerCase());
@@ -199,10 +246,9 @@ class SprintIQApp {
 
     if (projectSelect) {
       const currentVal = projectSelect.value;
-      const projects = Array.from(new Set(allTasks.map(t => {
-        const item = t.item || '';
-        return item.includes('|') ? item.split('|')[0].trim() : (item.includes('-') ? item.split('-')[0].trim() : 'General');
-      }))).sort();
+      const projects = Array.from(new Set(allTasks.map(t =>
+        window.SprintAnalytics.extractProjectName(t.item)
+      ))).sort();
       projectSelect.innerHTML = '<option value="">All Projects</option>' + projects.map(p => `<option value="${p}" ${p === currentVal ? 'selected' : ''}>${p}</option>`).join('');
     }
   }
@@ -265,8 +311,10 @@ class SprintIQApp {
       if (el) {
         el.addEventListener('change', () => {
           this.filters.owner = document.getElementById('filter-owner').value;
+          this.filters.project = document.getElementById('filter-project').value;
           this.filters.priority = document.getElementById('filter-priority').value;
           this.filters.status = document.getElementById('filter-status').value;
+          this.filters.rag = document.getElementById('filter-rag').value;
           this.runAnalysis();
           this.renderActiveView();
         });
@@ -816,6 +864,7 @@ class SprintIQApp {
     }
 
     const meta = this.importMeta;
+    const fileMeta = this.currentParser.extractFileMetadata ? this.currentParser.extractFileMetadata() : {};
     const descParts = [
       `${meta.source || 'File'} import with ${tasks.length} deliverables.`
     ];
@@ -825,9 +874,9 @@ class SprintIQApp {
 
     const newSprint = {
       id: `sprint-${Date.now()}`,
-      name: `Imported Sprint (${new Date().toLocaleDateString()})`,
-      startDate: new Date().toISOString().slice(0, 10),
-      endDate: new Date().toISOString().slice(0, 10),
+      name: fileMeta.title || `Imported Sprint (${new Date().toLocaleDateString()})`,
+      startDate: fileMeta.startDate || new Date().toISOString().slice(0, 10),
+      endDate: fileMeta.endDate || new Date().toISOString().slice(0, 10),
       status: 'Active',
       description: descParts.join(' '),
       importSource: meta.source,
@@ -870,25 +919,24 @@ class SprintIQApp {
       reportTitle: document.getElementById('report-meta-title')?.value || 'Executive Sprint Retrospective & RAG Report'
     });
 
+    const noData = () => { if (!this.activeAnalysis) { this.showToast('Import a sprint report first to export.', 'warning'); return true; } return false; };
+
     const exportPdf = () => {
-      if (this.activeAnalysis) {
-        window.SprintExporter.exportPDF(this.activeAnalysis, getMeta());
-        this.showToast('Management PDF Report downloaded!');
-      }
+      if (noData()) return;
+      window.SprintExporter.exportPDF(this.activeAnalysis, getMeta());
+      this.showToast('Management PDF Report downloaded!');
     };
 
     const exportExcel = () => {
-      if (this.activeAnalysis) {
-        window.SprintExporter.exportExcel(this.activeAnalysis, getMeta());
-        this.showToast('Multi-Sheet Excel Report downloaded!');
-      }
+      if (noData()) return;
+      window.SprintExporter.exportExcel(this.activeAnalysis, getMeta());
+      this.showToast('Multi-Sheet Excel Report downloaded!');
     };
 
     const exportPPTX = () => {
-      if (this.activeAnalysis) {
-        window.SprintExporter.exportPPTX(this.activeAnalysis, getMeta());
-        this.showToast('Executive PowerPoint Presentation downloaded!');
-      }
+      if (noData()) return;
+      window.SprintExporter.exportPPTX(this.activeAnalysis, getMeta());
+      this.showToast('Executive PowerPoint Presentation downloaded!');
     };
 
     document.getElementById('btn-quick-export-pdf')?.addEventListener('click', exportPdf);
@@ -943,7 +991,8 @@ class SprintIQApp {
   }
 
   switchView(viewId) {
-    window.SprintIQLoader.show(3000);
+    // Loader delay set to 0 for instant switching — re-enable by passing a ms value
+    window.SprintIQLoader.show(0);
 
     this.currentView = viewId;
 
@@ -955,6 +1004,12 @@ class SprintIQApp {
         link.classList.remove('active');
       }
     });
+
+    if (!this.sprints.length) {
+      this.renderEmptyState();
+      this.initIcons();
+      return;
+    }
 
     // Hide all view panels
     document.querySelectorAll('.view-panel').forEach(panel => {
@@ -1031,15 +1086,24 @@ class SprintIQApp {
     compEl.textContent = `${metrics.completionPct}%`;
     compEl.style.color = metrics.completionPct >= 90 ? 'var(--rag-green)' : (metrics.completionPct >= 70 ? 'var(--rag-amber)' : 'var(--accent-red)');
 
-    document.getElementById('kpi-actual-hours').textContent = `${metrics.totalAct}h`;
-    document.getElementById('kpi-est-hours').textContent = `Planned: ${metrics.totalEst}h (${metrics.variance >= 0 ? '+' : ''}${metrics.variance}h net variance)`;
+    document.getElementById('kpi-actual-hours').textContent = metrics.hasActuals ? `${metrics.totalAct}h` : 'Not logged';
+    document.getElementById('kpi-est-hours').textContent = metrics.hasActuals
+      ? `Planned: ${metrics.totalEst}h (${metrics.variance >= 0 ? '+' : ''}${metrics.variance}h net variance)`
+      : `Planned: ${metrics.totalEst}h (${metrics.variance}h scope undelivered)`;
 
     const effEl = document.getElementById('kpi-efficiency-pct');
     effEl.textContent = `${metrics.efficiencyPct}%`;
     effEl.style.color = metrics.efficiencyPct >= 85 && metrics.efficiencyPct <= 115 ? 'var(--rag-green)' : 'var(--rag-amber)';
+    const effSub = document.getElementById('kpi-efficiency-subtext');
+    if (effSub) {
+      effSub.textContent = metrics.hasActuals
+        ? 'Est vs Actual Effort Performance'
+        : 'Share of planned effort delivered';
+    }
 
     document.getElementById('kpi-team-size').textContent = metrics.teamSize;
-    document.getElementById('kpi-team-avg').textContent = `Avg Effort: ${(metrics.totalAct / (metrics.teamSize || 1)).toFixed(1)}h / delivery resource`;
+    const avgBasis = metrics.hasActuals ? metrics.totalAct : metrics.totalEst;
+    document.getElementById('kpi-team-avg').textContent = `Avg ${metrics.hasActuals ? 'Effort' : 'Plan'}: ${(avgBasis / (metrics.teamSize || 1)).toFixed(1)}h / delivery resource`;
 
     document.getElementById('kpi-imbalance-score').textContent = `${workload.imbalanceScore}%`;
     document.getElementById('kpi-imbalance-subtext').textContent = workload.imbalanceScore <= 25 ? 'Healthy Team Load Balance' : 'Concentrated Capacity Strain';
@@ -1186,7 +1250,18 @@ class SprintIQApp {
    * Render View 3: Employee RAG
    */
   renderEmployeeRAG() {
-    const { employees } = this.activeAnalysis;
+    const ragFilter = this.filters.rag;
+    const hasActuals = !!(this.activeAnalysis.metrics && this.activeAnalysis.metrics.hasActuals);
+    // Without logged hours, variance = undelivered planned scope (negative
+    // means commitment shortfall, not an under-run).
+    const varCell = (e) => `${e.variance >= 0 ? '+' : ''}${e.variance}h`;
+    const varColor = (e) => hasActuals
+      ? (e.variance > 0 ? 'var(--accent-red)' : 'var(--rag-green)')
+      : (e.variance < 0 ? 'var(--rag-amber)' : 'var(--rag-green)');
+    const effCell = (e) => `${e.efficiencyPct}%`;
+    const employees = ragFilter
+      ? this.activeAnalysis.employees.filter(e => e.rag === ragFilter)
+      : this.activeAnalysis.employees;
     const cardsContainer = document.getElementById('emp-cards-container');
     const tableContainer = document.getElementById('emp-table-container');
 
@@ -1217,13 +1292,13 @@ class SprintIQApp {
               <div class="emp-stat-lbl">Tasks Done</div>
             </div>
             <div>
-              <div class="emp-stat-val" style="color: ${e.variance > 0 ? 'var(--accent-red)' : 'var(--rag-green)'};">
-                ${e.variance >= 0 ? '+' : ''}${e.variance}h
+              <div class="emp-stat-val" style="color: ${varColor(e)};">
+                ${varCell(e)}
               </div>
               <div class="emp-stat-lbl">Variance</div>
             </div>
             <div>
-              <div class="emp-stat-val">${e.efficiencyPct}%</div>
+              <div class="emp-stat-val">${effCell(e)}</div>
               <div class="emp-stat-lbl">Efficiency</div>
             </div>
           </div>
@@ -1273,8 +1348,8 @@ class SprintIQApp {
             <td><strong>${e.completionPct}%</strong></td>
             <td>${e.estHours}h</td>
             <td>${e.actHours}h</td>
-            <td style="color: ${e.variance > 0 ? 'var(--accent-red)' : 'var(--rag-green)'};">${e.variance >= 0 ? '+' : ''}${e.variance}h</td>
-            <td>${e.efficiencyPct}%</td>
+            <td style="color: ${varColor(e)};">${varCell(e)}</td>
+            <td>${effCell(e)}</td>
             <td>${e.workloadStatus}</td>
             <td>
               <button class="btn btn-secondary btn-sm btn-open-emp-detail" data-emp-name="${e.name}">
@@ -1305,7 +1380,10 @@ class SprintIQApp {
     ragPill.className = `banner-badge badge-${emp.rag.toLowerCase()}`;
     ragPill.textContent = `${emp.rag} (Score: ${emp.score}/100)`;
 
-    document.getElementById('modal-emp-workload-tag').textContent = `${emp.workloadStatus} Workload · ${emp.actHours}h Logged (${emp.workloadPct}% of team total)`;
+    const hasActuals = !!(this.activeAnalysis.metrics && this.activeAnalysis.metrics.hasActuals);
+    document.getElementById('modal-emp-workload-tag').textContent = hasActuals
+      ? `${emp.workloadStatus} Workload · ${emp.actHours}h Logged (${emp.workloadPct}% of team total)`
+      : `${emp.workloadStatus} Planned Load · ${emp.estHours}h Est (${emp.workloadPct}% of team estimate)`;
     document.getElementById('modal-emp-tasks-stat').textContent = `${emp.completed} / ${emp.totalAssigned} (${emp.completionPct}%)`;
     document.getElementById('modal-emp-eff-stat').textContent = `${emp.efficiencyPct}%`;
     document.getElementById('modal-emp-var-stat').textContent = `${emp.variance >= 0 ? '+' : ''}${emp.variance}h`;
@@ -1317,7 +1395,9 @@ class SprintIQApp {
     const tbody = document.querySelector('#modal-emp-tasks-table tbody');
     if (tbody) {
       tbody.innerHTML = emp.tasks.map(t => {
-        const v = Math.round(((t.act || 0) - (t.est || 0)) * 10) / 10;
+        const v = hasActuals
+          ? Math.round(((t.act || 0) - (t.est || 0)) * 10) / 10
+          : ((t.status || '').toLowerCase() === 'completed' ? 0 : -Math.round((t.est || 0) * 10) / 10);
         return `
           <tr>
             <td>${t.item}</td>
@@ -1349,7 +1429,8 @@ class SprintIQApp {
       const ex = leadership.excludedFromCapacity;
       scopeNote.innerHTML = this.leadershipStripHtml(
         leadership,
-        `Capacity scope: ${employees.length} delivery resources. Excluded from capacity: ${ex.headcount} leadership resource(s), ${ex.actHours}h.`
+        `Capacity scope: ${employees.filter(e => e.name !== 'Unassigned').length} delivery resources. Excluded from capacity: ${ex.headcount} leadership resource(s), ${ex.actHours}h.` +
+        (workload.unassignedHours > 0 ? ` · ${workload.unassignedHours}h logged against Unassigned tasks` : '')
       );
     }
 
@@ -1385,7 +1466,8 @@ class SprintIQApp {
    * Render View 5: Task Analysis
    */
   renderTaskAnalysis() {
-    const { sprint } = this.activeAnalysis;
+    const { sprint, metrics } = this.activeAnalysis;
+    const hasActuals = !!(metrics && metrics.hasActuals);
     const tbody = document.querySelector('#task-analysis-table tbody');
     if (!tbody) return;
 
@@ -1402,10 +1484,14 @@ class SprintIQApp {
     if (countEl) countEl.textContent = `${totalTasks} deliverables · Page ${this.taskPage} of ${totalPages}`;
 
     tbody.innerHTML = paginatedTasks.map((t, idx) => {
-      const v = Math.round(((t.act || 0) - (t.est || 0)) * 10) / 10;
+      // Without logged hours: completed tasks met their plan (0h variance),
+      // everything else counts as undelivered scope (-est).
+      const v = hasActuals
+        ? Math.round(((t.act || 0) - (t.est || 0)) * 10) / 10
+        : ((t.status || '').toLowerCase() === 'completed' ? 0 : -Math.round((t.est || 0) * 10) / 10);
       const vp = t.est > 0 ? Math.round((v / t.est) * 100) : 0;
       const isBlocked = (t.status || '').toLowerCase() === 'blocked';
-      const isOverrun = v >= 3 && vp > 30;
+      const isOverrun = hasActuals && v >= 3 && vp > 30;
       const displayId = t.id || (start + idx + 1);
 
       return `
@@ -1440,7 +1526,10 @@ class SprintIQApp {
    * Render View 6: Projects
    */
   renderProjects() {
-    const { projects } = this.activeAnalysis;
+    const ragFilter = this.filters.rag;
+    const projects = ragFilter
+      ? this.activeAnalysis.projects.filter(p => p.rag === ragFilter)
+      : this.activeAnalysis.projects;
     const tbody = document.querySelector('#projects-table tbody');
     if (!tbody) return;
 
@@ -1480,7 +1569,10 @@ class SprintIQApp {
    * Render View 7: Risks
    */
   renderRisks() {
-    const { risks } = this.activeAnalysis;
+    const ragFilter = this.filters.rag;
+    const risks = ragFilter
+      ? this.activeAnalysis.risks.filter(r => r.rag === ragFilter)
+      : this.activeAnalysis.risks;
     const tbody = document.querySelector('#risks-table tbody');
     if (!tbody) return;
 
@@ -1639,9 +1731,24 @@ window.SprintIQLoader = {
     });
   },
 
-  show(duration = 3000, onDone = null) {
+  show(duration = 0, onDone = null) {
     const loader = document.getElementById('page-loader');
-    if (!loader) return;
+    if (!loader) {
+      if (typeof onDone === 'function') onDone();
+      return;
+    }
+    // Instant mode: skip the overlay entirely, just run the callback
+    if (duration <= 0) {
+      clearTimeout(this._hideTimer);
+      this._doneCallback = onDone;
+      loader.style.display = 'none';
+      this._isHiding = false;
+      if (typeof this._doneCallback === 'function') {
+        this._doneCallback();
+        this._doneCallback = null;
+      }
+      return;
+    }
     clearTimeout(this._hideTimer);
     this._doneCallback = onDone;
     this._isHiding = false;
@@ -1673,7 +1780,7 @@ window.SprintIQLoader = {
 // Bootstrap on DOM Ready
 document.addEventListener('DOMContentLoaded', () => {
   window.SprintIQLoader.init();
-  window.SprintIQLoader.show(3000, () => {
+  window.SprintIQLoader.show(0, () => {
     document.body.classList.add('app-loaded');
     window.SprintIQ = new SprintIQApp();
   });

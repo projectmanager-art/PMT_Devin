@@ -127,9 +127,11 @@ function LoginVisualPanel() {
         />
       </div>
 
-      <p className="absolute left-10 top-10 z-10 text-[12px] font-medium tracking-wide text-muted">
-        Less chasing. More achieving.
-      </p>
+      <img
+        src="/nexora-logo.png"
+        alt="NEXORA — Project Management, Simplified."
+        className="absolute left-10 top-10 z-10 w-56 mix-blend-screen"
+      />
 
       <div className="relative z-10 flex h-full flex-col items-start justify-start p-10 pt-24">
         <h2
@@ -197,8 +199,8 @@ export function Login({ onLogin }: { onLogin: () => void }) {
         <div className="relative flex w-full flex-col bg-paper lg:w-1/2">
           <div className="absolute left-0 right-0 top-0 z-10 flex items-center justify-between p-6 sm:p-8 md:px-12 lg:px-16 lg:py-10">
             <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-ink text-[13px] font-bold text-white">
-                N
+              <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-black">
+                <img src="/nexora-mark.png" alt="NEXORA" className="h-full w-full object-cover" />
               </div>
               <span className="text-[15px] font-semibold tracking-tight text-ink">{BRAND_NAME}</span>
             </div>

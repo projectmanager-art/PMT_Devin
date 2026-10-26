@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react'
-import { CalendarDays, Clock3, GripVertical, MessageSquare, Plus, ShieldAlert } from 'lucide-react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { CalendarDays, CheckSquare, Clock3, GripVertical, MessageSquare, Plus, ShieldAlert, Target } from 'lucide-react'
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useApp, type Task, type TaskStatus, type TeamMember } from '../store'
+import { todayKey } from '../lib/dates'
 import { Avatar, Badge, Button, EmptyState, Modal } from '../components/ui'
 import { TaskModal } from '../components/TaskModal'
+import { Sprints } from './Sprints'
 
 const taskStatuses: TaskStatus[] = ['To Do', 'In Progress', 'Review', 'Blocked', 'Completed']
 function TaskCard({
@@ -20,7 +22,7 @@ function TaskCard({
   onOpen: (task: Task) => void
 }) {
   const member = team.find((person) => person.name === task.assignee)
-  const isFollowUpOverdue = task.status !== 'Completed' && !!task.nextFollowUp && task.nextFollowUp < new Date().toISOString().slice(0, 10)
+  const isFollowUpOverdue = task.status !== 'Completed' && !!task.nextFollowUp && task.nextFollowUp < todayKey()
 
   return (
     <article
@@ -161,6 +163,9 @@ export function Tasks() {
   const { tasks, projects, team, updateTask, aiFindings, risks } = useApp()
   const navigate = useNavigate()
   const location = useLocation()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const view = searchParams.get('view') === 'sprints' ? 'sprints' : 'board'
+  const setView = (next: 'board' | 'sprints') => setSearchParams(next === 'sprints' ? { view: 'sprints' } : {}, { replace: true })
   const [statusFilter] = useState<'All' | TaskStatus>(() => {
     const incoming = location.state?.statusFilter as TaskStatus | undefined
     return incoming && taskStatuses.includes(incoming) ? incoming : 'All'
@@ -186,7 +191,7 @@ export function Tasks() {
     [tasks, statusFilter],
   )
 
-  const overdueCount = tasks.filter((task) => task.status !== 'Completed' && task.due < new Date().toISOString().slice(0, 10)).length
+  const overdueCount = tasks.filter((task) => task.status !== 'Completed' && task.due && task.due < todayKey()).length
   const visibleColumns = statusFilter === 'All' ? taskStatuses : [statusFilter]
   const moveTask = (taskId: string, status: TaskStatus) => {
     const task = tasks.find((item) => item.id === taskId)
@@ -198,12 +203,30 @@ export function Tasks() {
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
           <p className="mb-2 text-[10px] font-semibold uppercase tracking-[1.5px] text-[#929692]">Workspace</p>
-          <h1 className="font-heading text-[28px] font-semibold tracking-tight text-ink">Tasks</h1>
-          <p className="mt-2 text-[13px] text-muted">Project-linked work across NexORA.{overdueCount > 0 && <span className="ml-1 font-medium text-red">{overdueCount} overdue</span>}</p>
+          <h1 className="font-heading text-[28px] font-semibold tracking-tight text-ink">Workstream</h1>
+          <p className="mt-2 text-[13px] text-muted">Tasks, sprints and project-linked work across NexORA.{view === 'board' && overdueCount > 0 && <span className="ml-1 font-medium text-red">{overdueCount} overdue</span>}</p>
         </div>
       </div>
 
-      {filtered.length === 0 ? (
+      <div className="mb-5 flex w-fit gap-1 rounded-xl bg-[#f0f1ed] p-1">
+        <button
+          onClick={() => setView('board')}
+          className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-[11px] font-semibold transition ${view === 'board' ? 'bg-white text-ink shadow-soft' : 'text-muted hover:text-ink'}`}
+        >
+          <CheckSquare size={13} /> Task board
+        </button>
+        <button
+          onClick={() => setView('sprints')}
+          className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-[11px] font-semibold transition ${view === 'sprints' ? 'bg-white text-ink shadow-soft' : 'text-muted hover:text-ink'}`}
+        >
+          <Target size={13} /> Sprints
+        </button>
+      </div>
+
+      <div key={view} className="page-enter">
+      {view === 'sprints' ? (
+        <Sprints embedded />
+      ) : filtered.length === 0 ? (
         <EmptyState title="No tasks found" description="There are no tasks in this view yet. Create one to get started." action={<Button onClick={openCreateTask}><span className="inline-flex items-center gap-1.5"><Plus size={13} />Add task</span></Button>} />
       ) : (
         <div className="overflow-x-auto pb-4">
@@ -250,6 +273,7 @@ export function Tasks() {
           </div>
         </div>
       )}
+      </div>
 
       {selectedTask && <TaskDetailsModal task={selectedTask} projects={projects} tasks={tasks} team={team} aiFindings={aiFindings} raids={risks} onClose={() => setSelectedTaskId(null)} onEdit={openEditTask} />}
       {taskModalOpen && <TaskModal open editing={editingTask} onClose={() => { setTaskModalOpen(false); setEditingTask(null) }} onCreated={(id) => navigate(`/tasks/${id}`)} />}

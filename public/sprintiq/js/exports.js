@@ -76,7 +76,7 @@ class ReportDataModel {
 
   ragColor(value) {
     const c = String(value || '').toUpperCase();
-    return RAG_MAP[c] || { fill: '2A2E3D', text: 'F8FAFC' };
+    return RAG_MAP[c] || { fill: 'E8EDF2', text: '1F2937' };
   }
 
   kpiList() {
@@ -98,13 +98,16 @@ class ReportDataModel {
   }
 
   taskRows() {
+    const hasActuals = (this.sprint.tasks || []).some(t => Number(t.act) > 0);
     return (this.sprint.tasks || []).map((t, i) => {
       const est = Number(t.est) || 0;
       const act = Number(t.act) || 0;
-      const variance = act - est;
+      const status = String(t.status || '').toLowerCase();
+      // Without logged hours, variance = undelivered planned scope:
+      // completed tasks delivered their plan (0), the rest are -est.
+      const variance = hasActuals ? act - est : (status === 'completed' ? 0 : -est);
       const variancePct = est > 0 ? variance / est : 0;
       let risk = 'Normal';
-      const status = String(t.status || '').toLowerCase();
       if (status === 'blocked') risk = 'BLOCKED';
       else if (variance >= 4 && variancePct > 0.35) risk = 'SEVERE OVERRUN';
       else if (variance > 0) risk = 'OVERRUN';
@@ -170,17 +173,17 @@ function _X(v, style, t, z) {
 
 const BASE_STYLE = {
   border: {
-    top: { style: 'thin', color: { rgb: '334155' } },
-    left: { style: 'thin', color: { rgb: '334155' } },
-    right: { style: 'thin', color: { rgb: '334155' } },
-    bottom: { style: 'thin', color: { rgb: '334155' } }
+    top: { style: 'thin', color: { rgb: 'D9DEE3' } },
+    left: { style: 'thin', color: { rgb: 'D9DEE3' } },
+    right: { style: 'thin', color: { rgb: 'D9DEE3' } },
+    bottom: { style: 'thin', color: { rgb: 'D9DEE3' } }
   },
   alignment: { vertical: 'center', wrapText: true }
 };
 
 const HEADER_STYLE = Object.assign({}, BASE_STYLE, {
-  font: { bold: true, color: { rgb: 'F8FAFC' }, sz: 11 },
-  fill: { patternType: 'solid', fgColor: { rgb: '1E293B' } },
+  font: { bold: true, color: { rgb: '1F2937' }, sz: 11 },
+  fill: { patternType: 'solid', fgColor: { rgb: 'E8EDF2' } },
   alignment: { horizontal: 'center', vertical: 'center', wrapText: true }
 });
 
@@ -266,7 +269,7 @@ class SprintExporter {
 
     // 1. Executive Summary
     const wsSummary = XLSX.utils.aoa_to_sheet([
-      [X('SprintIQ - Executive Summary', { font: { bold: true, sz: 16, color: { rgb: 'F8FAFC' } }, fill: { patternType: 'solid', fgColor: { rgb: '1E293B' } } })],
+      [X('SprintIQ - Executive Summary', { font: { bold: true, sz: 16, color: { rgb: '1F2937' } }, fill: { patternType: 'solid', fgColor: { rgb: 'E8EDF2' } } })],
       [makeHeader('Sprint Name'), X(report.sprint.name || 'N/A')],
       [makeHeader('Duration'), X(report.duration)],
       [makeHeader('Generated'), X(meta.date)],
@@ -304,12 +307,12 @@ class SprintExporter {
     // 2B. Team & Roles (designations, sprint roles, capacity eligibility)
     const rosterHeaders = ['Employee', 'Designation', 'Sprint Role', 'Resource Type', 'Delivery Resource', 'Scrum Master', 'Counted in Capacity'];
     const rosterAoa = [
-      [X('Sprint Leadership', { font: { bold: true, color: { rgb: 'F8FAFC' } }, fill: { patternType: 'solid', fgColor: { rgb: '1E293B' } } })],
+      [X('Sprint Leadership', { font: { bold: true, color: { rgb: '1F2937' } }, fill: { patternType: 'solid', fgColor: { rgb: 'E8EDF2' } } })],
       [makeHeader('Scrum Master'), X(report.scrumMasterName)],
       [makeHeader('Designation'), X(report.scrumMasterDesignation)],
       [makeHeader('Excluded Leadership Effort'), Hrs(report.leadership.excludedFromCapacity.actHours)],
       [],
-      [X('Role & Designation Register', { font: { bold: true, color: { rgb: 'F8FAFC' } }, fill: { patternType: 'solid', fgColor: { rgb: '1E293B' } } })],
+      [X('Role & Designation Register', { font: { bold: true, color: { rgb: '1F2937' } }, fill: { patternType: 'solid', fgColor: { rgb: 'E8EDF2' } } })],
       rosterHeaders.map(makeHeader),
       ...report.rosterRows().map(p => [
         X(p.name),
@@ -398,14 +401,14 @@ class SprintExporter {
     const w = report.workload;
     const priorityRows = report.priorityRows();
     const effortAoa = [
-      [X('Workload Summary', { font: { bold: true, color: { rgb: 'F8FAFC' } }, fill: { patternType: 'solid', fgColor: { rgb: '1E293B' } } })],
+      [X('Workload Summary', { font: { bold: true, color: { rgb: '1F2937' } }, fill: { patternType: 'solid', fgColor: { rgb: 'E8EDF2' } } })],
       [makeHeader('Average Hours'), Hrs(w.avgHours)],
       [makeHeader('Imbalance Score'), Num(w.imbalanceScore)],
       [makeHeader('Underloaded'), X((w.underloadedList || []).join(', '))],
       [makeHeader('Balanced'), X((w.balancedList || []).join(', '))],
       [makeHeader('Overloaded'), X((w.overloadedList || []).join(', '))],
       [],
-      [X('Effort by Priority', { font: { bold: true, color: { rgb: 'F8FAFC' } }, fill: { patternType: 'solid', fgColor: { rgb: '1E293B' } } })],
+      [X('Effort by Priority', { font: { bold: true, color: { rgb: '1F2937' } }, fill: { patternType: 'solid', fgColor: { rgb: 'E8EDF2' } } })],
       [makeHeader('Priority'), makeHeader('Count'), makeHeader('Est (h)'), makeHeader('Act (h)'), makeHeader('Variance (h)')],
       ...priorityRows.map(p => [
         X(p.name),
@@ -415,7 +418,7 @@ class SprintExporter {
         VarHrs(p.variance)
       ]),
       [],
-      [X('Variance Note', { font: { bold: true, color: { rgb: 'F8FAFC' } }, fill: { patternType: 'solid', fgColor: { rgb: '1E293B' } } })],
+      [X('Variance Note', { font: { bold: true, color: { rgb: '1F2937' } }, fill: { patternType: 'solid', fgColor: { rgb: 'E8EDF2' } } })],
       [X('A chart can be generated in Excel from the priority/employee effort tables above.  Conditional RAG formatting is applied to status columns.', { alignment: { wrapText: true } })]
     ];
     const wsEffort = XLSX.utils.aoa_to_sheet(effortAoa);
@@ -424,7 +427,7 @@ class SprintExporter {
 
     // 7. Retrospective
     const retroAoa = [
-      [X('Sprint Retrospective', { font: { bold: true, color: { rgb: 'F8FAFC' } }, fill: { patternType: 'solid', fgColor: { rgb: '1E293B' } } })],
+      [X('Sprint Retrospective', { font: { bold: true, color: { rgb: '1F2937' } }, fill: { patternType: 'solid', fgColor: { rgb: 'E8EDF2' } } })],
       [makeHeader('Scrum Master'), X(`${report.scrumMasterName} (${report.scrumMasterDesignation})`)],
       [makeHeader('Summary'), X(report.summary, { alignment: { wrapText: true } })],
       [],
@@ -497,50 +500,60 @@ class SprintExporter {
     const m = 36;
     const footerH = 22;
     const maxY = pageH - m - footerH;
+    const contentW = pageW - 2 * m;
     let y = m;
+
+    // Light-theme palette
+    const INK = [37, 40, 41];
+    const BODY = [70, 76, 79];
+    const MUTED = [124, 130, 128];
+    const ROW_ALT = [246, 248, 250];
+    const HEAD_FILL = [233, 237, 241];
+    const HAIRLINE = [224, 229, 233];
+    const BRAND_RED = [230, 57, 70];
 
     function ragTextColor(v) {
       const c = String(v || '').toUpperCase();
-      if (c === 'GREEN' || c === 'G') return [34, 197, 94];
-      if (c === 'AMBER' || c === 'A' || c === 'YELLOW' || c === 'Y') return [234, 179, 8];
+      if (c === 'GREEN' || c === 'G') return [21, 163, 98];
+      if (c === 'AMBER' || c === 'A' || c === 'YELLOW' || c === 'Y') return [202, 138, 4];
       if (c === 'RED' || c === 'R') return [220, 38, 38];
-      return [248, 250, 252];
+      return INK;
     }
 
     function drawPageBackground() {
-      doc.setFillColor(18, 20, 26);
+      doc.setFillColor(255, 255, 255);
       doc.rect(0, 0, pageW, pageH, 'F');
     }
 
     function pageHeader(title) {
       drawPageBackground();
-      doc.setFillColor(18, 20, 26);
-      doc.rect(0, 0, pageW, 52, 'F');
-      doc.setFillColor(230, 57, 70);
-      doc.rect(0, 50, pageW, 3, 'F');
+      doc.setFillColor(...BRAND_RED);
+      doc.rect(0, 46, pageW, 3, 'F');
 
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(14);
-      doc.setTextColor(248, 250, 252);
-      doc.text('SprintIQ', m, 35);
+      doc.setTextColor(...BRAND_RED);
+      doc.text('SprintIQ', m, 33);
 
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(9);
-      doc.setTextColor(148, 163, 184);
-      doc.text(title || 'Management Report', m + 80, 35);
+      doc.setTextColor(...MUTED);
+      doc.text(title || 'Management Report', m + 80, 33);
 
       doc.setFontSize(8);
-      doc.text(`Generated: ${meta.date}`, pageW - m - 120, 35);
-      y = 70;
+      doc.text(`Generated: ${meta.date}`, pageW - m - 120, 33);
+      y = 68;
     }
 
     function drawTableHeader(columns, startY) {
       const tableW = columns.reduce((a, c) => a + c.w, 0);
-      doc.setFillColor(42, 46, 61);
+      doc.setFillColor(...HEAD_FILL);
       doc.rect(m, startY - 12, tableW, 18, 'F');
+      doc.setDrawColor(...HAIRLINE);
+      doc.line(m, startY + 6, m + tableW, startY + 6);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(8.5);
-      doc.setTextColor(248, 250, 252);
+      doc.setTextColor(...INK);
       let x = m;
       columns.forEach(col => {
         doc.text(col.header, x + 4, startY - 2);
@@ -549,6 +562,12 @@ class SprintExporter {
     }
 
     function drawTable(columns, rows, title) {
+      // Scale columns down if the table is wider than the printable area
+      const total = columns.reduce((a, c) => a + c.w, 0);
+      if (total > contentW) {
+        const k = contentW / total;
+        columns = columns.map(c => Object.assign({}, c, { w: c.w * k }));
+      }
       const tableW = columns.reduce((a, c) => a + c.w, 0);
       const headerH = 18;
       const pad = 4;
@@ -563,7 +582,7 @@ class SprintExporter {
 
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(12);
-      doc.setTextColor(248, 250, 252);
+      doc.setTextColor(...INK);
       doc.text(title, m, curY);
       curY += 16;
 
@@ -585,14 +604,14 @@ class SprintExporter {
           curY = y;
           doc.setFont('helvetica', 'bold');
           doc.setFontSize(12);
-          doc.setTextColor(248, 250, 252);
+          doc.setTextColor(...INK);
           doc.text(title, m, curY);
           curY += 16;
           drawTableHeader(columns, curY);
           curY += headerH;
         }
 
-        const fill = i % 2 === 0 ? [18, 20, 26] : [26, 29, 38];
+        const fill = i % 2 === 0 ? [255, 255, 255] : ROW_ALT;
         doc.setFillColor(...fill);
         doc.rect(m, curY - pad, tableW, h, 'F');
 
@@ -603,7 +622,7 @@ class SprintExporter {
             doc.setTextColor(...ragTextColor(c.txt));
             doc.setFont('helvetica', 'bold');
           } else {
-            doc.setTextColor(248, 250, 252);
+            doc.setTextColor(...BODY);
             doc.setFont('helvetica', 'normal');
           }
           doc.setFontSize(8);
@@ -622,16 +641,16 @@ class SprintExporter {
       if (y + 40 > maxY) { doc.addPage(); pageHeader(title); }
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(11);
-      doc.setTextColor(...(color || [248, 250, 252]));
+      doc.setTextColor(...(color || INK));
       doc.text(title, m, y);
       y += 14;
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(9);
-      doc.setTextColor(203, 213, 225);
+      doc.setTextColor(...BODY);
       items.forEach(item => {
-        const lines = doc.splitTextToSize(`• ${item}`, pageW - 2 * m);
+        const lines = doc.splitTextToSize(`• ${item}`, contentW);
         const h = lines.length * 11 + 4;
-        if (y + h > maxY) { doc.addPage(); pageHeader(title); y = 70; }
+        if (y + h > maxY) { doc.addPage(); pageHeader(title); y = 68; }
         doc.text(lines, m, y);
         y += h;
       });
@@ -640,37 +659,45 @@ class SprintExporter {
 
     // --- Cover ---
     drawPageBackground();
-    doc.setFillColor(230, 57, 70);
-    doc.rect(m, 220, 80, 4, 'F');
+    doc.setFillColor(...BRAND_RED);
+    doc.rect(m, 190, 80, 4, 'F');
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(34);
-    doc.setTextColor(248, 250, 252);
-    doc.text(meta.title, m, 260);
+    doc.setFontSize(26);
+    doc.setTextColor(...INK);
+    const titleLines = doc.splitTextToSize(meta.title, contentW);
+    doc.text(titleLines, m, 232);
+    let coverY = 232 + titleLines.length * 32 + 8;
+
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(14);
-    doc.setTextColor(148, 163, 184);
-    doc.text(`Sprint: ${report.sprint.name || 'N/A'}`, m, 290);
-    doc.text(`Duration: ${report.duration}`, m, 310);
-    doc.setFontSize(12);
-    doc.text(`Scrum Master: ${report.scrumMasterName} (${report.scrumMasterDesignation})`, m, 335);
-    doc.text(`Company: ${meta.company}  |  Prepared By: ${meta.preparedBy}`, m, 355);
-    doc.text(`Generated: ${meta.date}`, m, 375);
+    doc.setFontSize(13);
+    doc.setTextColor(...MUTED);
+    doc.text(`Sprint: ${report.sprint.name || 'N/A'}`, m, coverY, { maxWidth: contentW });
+    coverY += 20;
+    doc.text(`Duration: ${report.duration}`, m, coverY, { maxWidth: contentW });
+    coverY += 20;
+    doc.setFontSize(11);
+    doc.text(`Scrum Master: ${report.scrumMasterName} (${report.scrumMasterDesignation})`, m, coverY, { maxWidth: contentW });
+    coverY += 18;
+    doc.text(`Company: ${meta.company}  |  Prepared By: ${meta.preparedBy}`, m, coverY, { maxWidth: contentW });
+    coverY += 18;
+    doc.text(`Generated: ${meta.date}`, m, coverY);
+    coverY += 24;
 
     const rc = report.ragColor(report.rag);
     const rgb = rc.fill.match(/[0-9A-Fa-f]{2}/g).map(h => parseInt(h, 16));
     doc.setFillColor(...rgb);
-    doc.roundedRect(m, 390, pageW - 2 * m, 44, 4, 4, 'F');
+    doc.roundedRect(m, coverY, contentW, 44, 4, 4, 'F');
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
     doc.setTextColor(255, 255, 255);
-    doc.text(`OVERALL SPRINT HEALTH: ${report.rag}  (Score: ${report.ragScore}/100)`, m + 12, 417);
+    doc.text(`OVERALL SPRINT HEALTH: ${report.rag}  (Score: ${report.ragScore}/100)`, m + 12, coverY + 27);
 
     // --- Sprint Leadership (management layer, excluded from delivery metrics) ---
     doc.addPage();
     pageHeader('Sprint Leadership');
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(13);
-    doc.setTextColor(248, 250, 252);
+    doc.setTextColor(...INK);
     doc.text('1. Sprint Leadership', m, y);
     y += 18;
     const leadLines = [
@@ -684,38 +711,45 @@ class SprintExporter {
       leadLines.push(['Other Leadership', otherLeads.map(l => `${l.name} (${l.designation})`).join(', ')]);
     }
     leadLines.forEach((row, i) => {
-      doc.setFillColor(...(i % 2 === 0 ? [26, 29, 38] : [18, 20, 26]));
-      doc.rect(m, y - 12, pageW - 2 * m, 18, 'F');
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(148, 163, 184);
+      doc.setFillColor(...(i % 2 === 0 ? ROW_ALT : [255, 255, 255]));
+      doc.rect(m, y - 12, contentW, 18, 'F');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(...MUTED);
       doc.text(row[0], m + 6, y + 2);
-      doc.setFont('helvetica', 'normal'); doc.setTextColor(248, 250, 252);
-      doc.text(String(row[1]), m + 180, y + 2);
+      doc.setFont('helvetica', 'normal'); doc.setTextColor(...INK);
+      doc.text(String(row[1]), m + 180, y + 2, { maxWidth: contentW - 186 });
       y += 20;
     });
     y += 4;
     doc.setFont('helvetica', 'italic');
     doc.setFontSize(8.5);
-    doc.setTextColor(148, 163, 184);
-    doc.text('Sprint leadership is management / non-billable effort and is excluded from all delivery capacity, utilization and RAG calculations below.', m, y, { maxWidth: pageW - 2 * m });
+    doc.setTextColor(...MUTED);
+    doc.text('Sprint leadership is management / non-billable effort and is excluded from all delivery capacity, utilization and RAG calculations below.', m, y, { maxWidth: contentW });
     y += 22;
 
     // --- Executive Summary ---
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(13);
-    doc.setTextColor(248, 250, 252);
+    doc.setTextColor(...INK);
     doc.text('2. Executive Management Summary', m, y);
     y += 18;
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
-    doc.setTextColor(203, 213, 225);
-    const summaryLines = doc.splitTextToSize(report.summary, pageW - 2 * m);
+    doc.setTextColor(...BODY);
+    const summaryLines = doc.splitTextToSize(report.summary, contentW);
+    if (y + summaryLines.length * 12 > maxY) {
+      doc.addPage();
+      pageHeader('Executive Summary');
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(...BODY);
+    }
     doc.text(summaryLines, m, y);
     y += summaryLines.length * 12 + 18;
 
     // --- Sprint Health ---
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(13);
-    doc.setTextColor(248, 250, 252);
+    doc.setTextColor(...INK);
     doc.text('3. Sprint Health', m, y);
     y += 18;
     const health = [
@@ -724,18 +758,18 @@ class SprintExporter {
       ['Team Size', report.metrics.teamSize ?? 0, 'Imbalance', `${report.workload.imbalanceScore ?? 0}`],
       ['Total Tasks', report.metrics.totalTasks ?? 0, 'Blocked', report.metrics.blocked ?? 0]
     ];
-    const hw = (pageW - 2 * m) / 4;
+    const hw = contentW / 4;
     health.forEach((row, i) => {
-      const fill = i % 2 === 0 ? [26, 29, 38] : [18, 20, 26];
+      const fill = i % 2 === 0 ? ROW_ALT : [255, 255, 255];
       doc.setFillColor(...fill);
-      doc.rect(m, y - 12, pageW - 2 * m, 18, 'F');
+      doc.rect(m, y - 12, contentW, 18, 'F');
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(9);
-      doc.setTextColor(148, 163, 184);
+      doc.setTextColor(...MUTED);
       doc.text(row[0], m + 6, y + 2);
       doc.text(row[2], m + hw * 2 + 6, y + 2);
       doc.setFont('helvetica', 'normal');
-      doc.setTextColor(248, 250, 252);
+      doc.setTextColor(...INK);
       doc.text(String(row[1]), m + hw + 6, y + 2);
       doc.text(String(row[3]), m + hw * 3 + 6, y + 2);
       y += 20;
@@ -745,21 +779,21 @@ class SprintExporter {
     // --- KPIs ---
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(13);
-    doc.setTextColor(248, 250, 252);
+    doc.setTextColor(...INK);
     doc.text('4. Sprint KPIs', m, y);
     y += 18;
     const kpi = report.kpiList();
     const kpiA = [];
     for (let i = 0; i < kpi.length; i += 2) kpiA.push([kpi[i], kpi[i + 1]]);
-    const kpiW = (pageW - 2 * m) / 4;
+    const kpiW = contentW / 4;
     kpiA.forEach((pair, i) => {
-      const fill = i % 2 === 0 ? [26, 29, 38] : [18, 20, 26];
+      const fill = i % 2 === 0 ? ROW_ALT : [255, 255, 255];
       doc.setFillColor(...fill);
-      doc.rect(m, y - 12, pageW - 2 * m, 18, 'F');
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(148, 163, 184);
+      doc.rect(m, y - 12, contentW, 18, 'F');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(...MUTED);
       doc.text(pair[0].label, m + 6, y + 2);
       doc.text((pair[1] || {}).label, m + kpiW * 2 + 6, y + 2);
-      doc.setFont('helvetica', 'normal'); doc.setTextColor(248, 250, 252);
+      doc.setFont('helvetica', 'normal'); doc.setTextColor(...INK);
       doc.text(String(pair[0].value), m + kpiW + 6, y + 2);
       doc.text(String((pair[1] || {}).value || ''), m + kpiW * 3 + 6, y + 2);
       y += 20;
@@ -849,23 +883,23 @@ class SprintExporter {
     if (y + 100 > maxY) { doc.addPage(); pageHeader('Effort Analysis'); }
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(13);
-    doc.setTextColor(248, 250, 252);
+    doc.setTextColor(...INK);
     doc.text('8. Effort Analysis', m, y);
     y += 18;
     const w = report.workload;
     const effortLines = [
       `Average Hours: ${w.avgHours ?? 0}h`,
       `Imbalance Score: ${w.imbalanceScore ?? 0}`,
-      `Underloaded: ${(w.underloadedList || []).join(', ') || 'None'}`,
-      `Balanced: ${(w.balancedList || []).join(', ') || 'None'}`,
-      `Overloaded: ${(w.overloadedList || []).join(', ') || 'None'}`
+      `Underloaded: ${(w.underloadedList || []).map(e => e.name || e).join(', ') || 'None'}`,
+      `Balanced: ${(w.balancedList || []).map(e => e.name || e).join(', ') || 'None'}`,
+      `Overloaded: ${(w.overloadedList || []).map(e => e.name || e).join(', ') || 'None'}`
     ];
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
-    doc.setTextColor(203, 213, 225);
+    doc.setTextColor(...BODY);
     effortLines.forEach(line => {
-      const lines = doc.splitTextToSize(line, pageW - 2 * m);
-      if (y + lines.length * 11 > maxY) { doc.addPage(); pageHeader('Effort Analysis'); y = 70; }
+      const lines = doc.splitTextToSize(line, contentW);
+      if (y + lines.length * 11 > maxY) { doc.addPage(); pageHeader('Effort Analysis'); y = 68; }
       doc.text(lines, m, y);
       y += lines.length * 12 + 4;
     });
@@ -874,11 +908,11 @@ class SprintExporter {
     // --- Retrospective ---
     doc.addPage();
     pageHeader('Retrospective');
-    bulletSection('What Went Well', report.wellRows(), [34, 197, 94]);
+    bulletSection('What Went Well', report.wellRows(), [21, 163, 98]);
     bulletSection('What Did Not Go Well', report.didntRows(), [220, 38, 38]);
     bulletSection('Key Learnings', report.learningRows());
     bulletSection('Improvements', report.improvementRows());
-    bulletSection('Retrospective Risks', report.retroRiskRows(), [234, 179, 8]);
+    bulletSection('Retrospective Risks', report.retroRiskRows(), [202, 138, 4]);
 
     // --- Risks ---
     const riskRows = report.riskRows().map(r => [
@@ -922,14 +956,14 @@ class SprintExporter {
     if (y + 80 > maxY) { doc.addPage(); pageHeader('Final Summary'); }
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
-    doc.setTextColor(248, 250, 252);
+    doc.setTextColor(...INK);
     doc.text('11. Final Summary', m, y);
     y += 20;
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
-    doc.setTextColor(203, 213, 225);
+    doc.setTextColor(...BODY);
     const final = `Sprint ${report.sprint.name || ''} completed with ${report.metrics.completionPct ?? 0}% task completion and ${report.metrics.efficiencyPct ?? 0}% efficiency. Overall health is ${report.rag} (${report.ragScore}/100). ${report.summary}`;
-    const finalLines = doc.splitTextToSize(final, pageW - 2 * m);
+    const finalLines = doc.splitTextToSize(final, contentW);
     doc.text(finalLines, m, y);
 
     // --- Footer page numbers ---
@@ -938,7 +972,7 @@ class SprintExporter {
       doc.setPage(i);
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8);
-      doc.setTextColor(148, 163, 184);
+      doc.setTextColor(...MUTED);
       doc.text(`SprintIQ | Page ${i} of ${totalPages}`, pageW / 2, pageH - 18, { align: 'center' });
     }
 
@@ -964,10 +998,11 @@ class SprintExporter {
     pptx.author = meta.preparedBy;
     pptx.company = meta.company;
 
-    const DARK = '12141A';
-    const CARD = '1A1D26';
-    const LIGHT = 'F8FAFC';
-    const MUTED = '94A3B8';
+    // Light theme: white slides, dark text, soft gray cards
+    const DARK = 'FFFFFF';
+    const CARD = 'F1F4F6';
+    const LIGHT = '252829';
+    const MUTED = '6B6F6E';
     const RED = 'E63946';
     const GREEN = '2EC4B6';
     const AMBER = 'FFB703';
@@ -1003,14 +1038,14 @@ class SprintExporter {
       chunks.forEach((set, i) => {
         const t = chunks.length > 1 ? `${title} (${i + 1}/${chunks.length})` : title;
         const s = newSlide(t);
-        const headerRow = header.map(h => ({ text: h, options: { bold: true, fill: '2A2E3D', color: LIGHT, align: 'center' } }));
+        const headerRow = header.map(h => ({ text: h, options: { bold: true, fill: 'E8EDF2', color: LIGHT, align: 'center' } }));
         const data = set.map(r => r.map(cell => (typeof cell === 'object' ? cell : { text: String(cell), options: { color: LIGHT } })));
         s.addTable([headerRow, ...data], {
           x: 0.5, y: 1.2, w: 12.3, colW,
           fill: { color: DARK },
           color: LIGHT,
           fontSize: 9,
-          border: { pt: 0.5, color: '2A2E3D' },
+          border: { pt: 0.5, color: 'D9DEE3' },
           valign: 'middle'
         });
       });
@@ -1101,7 +1136,7 @@ class SprintExporter {
     s4.addTable(kpiRows, {
       x: 0.5, y: 1.2, w: 6, colW: [3.8, 2.0],
       color: LIGHT, fill: { color: DARK }, fontSize: 11,
-      border: { pt: 0.5, color: '2A2E3D' },
+      border: { pt: 0.5, color: 'D9DEE3' },
       valign: 'middle'
     });
 

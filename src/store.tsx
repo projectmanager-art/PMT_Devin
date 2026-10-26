@@ -1,10 +1,45 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { migrateLegacyRisk, normalizeRisk, type AiFinding, type RaidItem } from './lib/raid'
+import { buildCommitPayload, buildImportPlan, extractProjectRows, loadXlsx } from './lib/excelImport'
 
-export type ProjectStatus = 'Planning' | 'In Progress' | 'On Hold' | 'Completed'
+export type ProjectStatus = 'Planning' | 'In Progress' | 'On Hold' | 'Completed' | 'At Risk' | 'Backed Off'
 export type Health = 'Green' | 'Amber' | 'Red'
+
+/** The signed-in internal user — pass-through auth has no user store yet. */
+export const CURRENT_USER = 'Sandeep Rana'
+
+/** Manual project-level status report — independent of employee tasks. */
+export interface StatusUpdate {
+  id: string
+  projectId: string
+  author: string
+  createdAt: string // ISO
+  status: ProjectStatus
+  progress: number // 0-100, manually reported until task-derived progress exists
+  workCompleted?: string
+  currentWork?: string
+  pendingWork?: string
+  blockers?: string
+  blockerSeverity?: 'none' | 'non-critical' | 'critical'
+  clientUpdate?: string
+  risksDependencies?: string
+  nextSteps?: string
+  expectedCompletion?: string // YYYY-MM-DD — revises project.end when provided
+  internalRemarks?: string // internal-only
+  source: 'manual' | 'imported-comment'
+  editHistory?: { editedAt: string; editedBy: string; changes: string }[]
+}
 export type Priority = 'Low' | 'Medium' | 'High' | 'Urgent'
 export type TaskStatus = 'To Do' | 'In Progress' | 'Review' | 'Blocked' | 'Completed'
+
+export interface ImportMeta {
+  batchId: string
+  sourceFile: string
+  sourceSheet: string
+  sourceRow: number
+  sourceStatus?: string
+  projectClass?: string
+}
 
 export interface Project {
   id: string
@@ -23,6 +58,17 @@ export interface Project {
   actualHours: number
   description: string
   notes: string
+  /** Migrated financials — raw source strings preserved verbatim ('NA' stays 'NA', never zeroed) */
+  invoiceValue?: string
+  collectedAmount?: string
+  amountPending?: string
+  paymentFrequency?: string
+  importMeta?: ImportMeta
+  /** Manager-set health override with an audit reason; auto-health applies when absent */
+  healthOverride?: { health: Health; reason: string; author: string; at: string }
+  /** Denormalized reporting stamp — set when a status update is saved */
+  lastReportAt?: string
+  lastReportBy?: string
 }
 
 export interface TaskComment {
@@ -74,6 +120,24 @@ export interface Client {
   requirements: string
   pendingApprovals: string
   gender?: 'male' | 'female'
+  importMeta?: ImportMeta
+}
+
+/** Auditable record of one Excel import commit — enables rollback + reconciliation. */
+export interface ImportBatch {
+  id: string
+  fileName: string
+  sheetName: string
+  headerRow: number
+  importedAt: string
+  totalRows: number
+  importedProjects: number
+  importedClients: number
+  duplicates: number
+  errors: number
+  warnings: string[]
+  rolledBack?: boolean
+  sourceSnapshot: { rowNumber: number; cells: Record<string, string> }[]
 }
 
 export interface TeamMember {
@@ -156,6 +220,11 @@ export interface Activity {
   project: string
   time: string
   type: 'task' | 'comment' | 'status' | 'risk' | 'meeting' | 'project'
+  /** ISO timestamp for sortable feeds; `time` remains the display string */
+  at?: string
+  /** Link target so feed items can open the project */
+  projectId?: string
+  author?: string
 }
 
 export interface AppData {
@@ -168,75 +237,24 @@ export interface AppData {
   meetings: Meeting[]
   documents: DocumentItem[]
   activity: Activity[]
+  importBatches: ImportBatch[]
+  statusUpdates: StatusUpdate[]
 }
 
 const uid = () => Math.random().toString(36).slice(2, 9)
 
 const seed = {
-  projects: [
-    { id: 'p1', name: 'Atlas Rebrand', client: 'Atlas Corp', manager: 'Sandeep Rana', status: 'In Progress', health: 'Green', progress: 65, priority: 'High', start: '2026-07-12', end: '2026-09-28', type: 'Brand & Web', budget: '$42,000', estimatedHours: 320, actualHours: 208, description: 'Complete brand refresh and digital experience for Atlas Corp.', notes: 'Client prefers weekly written updates.' },
-    { id: 'p2', name: 'Vertex Campaign', client: 'Vertex Marketing', manager: 'Maya Patel', status: 'Planning', health: 'Amber', progress: 25, priority: 'Urgent', start: '2026-08-18', end: '2026-10-15', type: 'Campaign', budget: '$24,000', estimatedHours: 180, actualHours: 45, description: 'Product launch campaign pending final client approval.', notes: 'Waiting on brand sign-off.' },
-    { id: 'p3', name: 'Mercury Mobile App', client: 'Mercury LLC', manager: 'Chris Wong', status: 'In Progress', health: 'Green', progress: 80, priority: 'High', start: '2026-06-02', end: '2026-09-20', type: 'Product Design', budget: '$68,500', estimatedHours: 480, actualHours: 384, description: 'Mobile-first financial planning experience for Mercury.', notes: 'Security review required before launch.' },
-    { id: 'p4', name: 'Northwind Portal', client: 'Northwind Logistics', manager: 'Sam Lee', status: 'Planning', health: 'Green', progress: 15, priority: 'Medium', start: '2026-09-01', end: '2026-10-24', type: 'Web Platform', budget: '$31,200', estimatedHours: 250, actualHours: 38, description: 'Self-service logistics portal for Northwind customers.', notes: 'Kickoff completed.' },
-    { id: 'p5', name: 'Orchid Analytics', client: 'Orchid Retail', manager: 'Maya Patel', status: 'Completed', health: 'Green', progress: 100, priority: 'Medium', start: '2026-04-05', end: '2026-08-30', type: 'Data & Analytics', budget: '$52,000', estimatedHours: 390, actualHours: 382, description: 'Retail analytics dashboard and reporting suite.', notes: 'Handoff complete.' },
-    { id: 'p6', name: 'Cobalt Website', client: 'Cobalt Energy', manager: 'Sandeep Rana', status: 'On Hold', health: 'Red', progress: 40, priority: 'Medium', start: '2026-07-20', end: '2026-10-08', type: 'Web Platform', budget: '$29,000', estimatedHours: 220, actualHours: 88, description: 'High-performance marketing website for Cobalt Energy.', notes: 'Paused pending content decisions.' },
-  ],
-  tasks: [
-    { id: 't1', title: 'Finalize homepage content', projectId: 'p1', assignee: 'Maya Patel', status: 'In Progress', priority: 'High', due: '2026-09-06', estimatedHours: 12, actualHours: 8, comments: ['Waiting on final copy.'], dependencies: [] },
-    { id: 't2', title: 'QA mobile navigation', projectId: 'p3', assignee: 'Chris Wong', status: 'Review', priority: 'High', due: '2026-09-05', estimatedHours: 8, actualHours: 6, comments: [], dependencies: ['t1'] },
-    { id: 't3', title: 'Client approval: color system', projectId: 'p2', assignee: 'Sandeep Rana', status: 'Blocked', priority: 'Urgent', due: '2026-09-01', estimatedHours: 4, actualHours: 2, comments: ['Client response overdue.'], dependencies: [] },
-    { id: 't4', title: 'Set up analytics events', projectId: 'p6', assignee: 'Alex Morgan', status: 'To Do', priority: 'Medium', due: '2026-09-10', estimatedHours: 10, actualHours: 0, comments: [], dependencies: [] },
-    { id: 't5', title: 'Prototype customer portal', projectId: 'p4', assignee: 'Chris Wong', status: 'In Progress', priority: 'Medium', due: '2026-09-14', estimatedHours: 20, actualHours: 12, comments: [], dependencies: [] },
-    { id: 't6', title: 'Prepare handoff documentation', projectId: 'p5', assignee: 'Alex Morgan', status: 'Completed', priority: 'Low', due: '2026-08-29', estimatedHours: 6, actualHours: 6, comments: [], dependencies: [] },
-    { id: 't7', title: 'Payment flow usability test', projectId: 'p3', assignee: 'Maya Patel', status: 'To Do', priority: 'High', due: '2026-09-08', estimatedHours: 16, actualHours: 0, comments: [], dependencies: [] },
-    { id: 't8', title: 'Landing page animation', projectId: 'p6', assignee: 'Sam Lee', status: 'Completed', priority: 'Low', due: '2026-09-01', estimatedHours: 7, actualHours: 7, comments: [], dependencies: [] },
-    { id: 't9', title: 'Finalize pitch deck', projectId: 'p2', assignee: 'Sandeep Rana', status: 'In Progress', priority: 'High', due: '2026-10-01', estimatedHours: 6, actualHours: 3, comments: [], dependencies: [] },
-    { id: 't10', title: 'Client call prep', projectId: 'p4', assignee: 'Maya Patel', status: 'To Do', priority: 'Medium', due: '2026-10-01', estimatedHours: 4, actualHours: 0, comments: [], dependencies: [] },
-    { id: 't11', title: 'Review SEO keywords', projectId: 'p1', assignee: 'Chris Wong', status: 'In Progress', priority: 'Medium', due: '2026-10-02', estimatedHours: 8, actualHours: 4, comments: [], dependencies: [] },
-    { id: 't12', title: 'Submit expense reports', projectId: 'p5', assignee: 'Alex Morgan', status: 'Completed', priority: 'Low', due: '2026-10-02', estimatedHours: 3, actualHours: 3, comments: [], dependencies: [] },
-    { id: 't13', title: 'QA regression suite', projectId: 'p3', assignee: 'Sam Lee', status: 'Blocked', priority: 'High', due: '2026-10-03', estimatedHours: 12, actualHours: 4, comments: ['Waiting on test environment.'], dependencies: [] },
-    { id: 't14', title: 'Sprint planning', projectId: 'p3', assignee: 'Sandeep Rana', status: 'To Do', priority: 'High', due: '2026-10-05', estimatedHours: 5, actualHours: 0, comments: [], dependencies: [] },
-    { id: 't15', title: 'Design system tokens', projectId: 'p1', assignee: 'Maya Patel', status: 'Review', priority: 'Medium', due: '2026-10-06', estimatedHours: 9, actualHours: 9, comments: ['Ready for review.'], dependencies: [] },
-    { id: 't16', title: 'Deploy staging build', projectId: 'p4', assignee: 'Alex Morgan', status: 'In Progress', priority: 'Urgent', due: '2026-10-07', estimatedHours: 7, actualHours: 3, comments: [], dependencies: [] },
-    { id: 't17', title: 'Contract redlines', projectId: 'p6', assignee: 'Sandeep Rana', status: 'Blocked', priority: 'Medium', due: '2026-09-30', estimatedHours: 4, actualHours: 1, comments: ['Legal feedback pending.'], dependencies: [] },
-  ],
-  clients: [
-    { id: 'c1', name: 'Atlas Corp', company: 'Atlas Corporation', contact: 'Amelia Stone', email: 'amelia@atlas.example', phone: '+1 415 555 0198', website: 'atlas.example', notes: 'Executive sponsor prefers weekly written updates.', requirements: 'Brand refresh, website, guidelines.', pendingApprovals: 'Final homepage copy', gender: 'female' },
-    { id: 'c2', name: 'Vertex Marketing', company: 'Vertex Marketing Group', contact: 'Theo Grant', email: 'theo@vertex.example', phone: '+1 646 555 0113', website: 'vertex.example', notes: 'Pending brand approval.', requirements: 'Launch campaign, creative assets.', pendingApprovals: 'Color system sign-off', gender: 'male' },
-    { id: 'c3', name: 'Mercury LLC', company: 'Mercury Financial', contact: 'Marcus Bell', email: 'marcus@mercury.example', phone: '+1 212 555 0142', website: 'mercury.example', notes: 'Security review required before launch.', requirements: 'Mobile app design and build.', pendingApprovals: 'Security checklist', gender: 'male' },
-    { id: 'c4', name: 'Northwind Logistics', company: 'Northwind Logistics', contact: 'Priya Shah', email: 'priya@northwind.example', phone: '+1 312 555 0177', website: 'northwind.example', notes: 'Main contact available Tuesday–Thursday.', requirements: 'Customer portal.', pendingApprovals: 'None', gender: 'female' },
-  ],
-  team: [
-    { id: 'm1', name: 'Sandeep Rana', role: 'Project Manager', skills: 'Strategy, Delivery', capacity: 40, utilized: 31, projects: ['Atlas Rebrand', 'Cobalt Website', 'Vertex Campaign'], gender: 'male' },
-    { id: 'm2', name: 'Maya Patel', role: 'Senior Designer', skills: 'UX, Visual Design', capacity: 40, utilized: 36, projects: ['Atlas Rebrand', 'Mercury Mobile App', 'Orchid Analytics'], gender: 'female' },
-    { id: 'm3', name: 'Chris Wong', role: 'Product Designer', skills: 'Research, UI', capacity: 40, utilized: 27, projects: ['Mercury Mobile App', 'Northwind Portal'], gender: 'male' },
-    { id: 'm4', name: 'Alex Morgan', role: 'Engineer', skills: 'Frontend, Analytics', capacity: 40, utilized: 19, projects: ['Cobalt Website', 'Orchid Analytics'], gender: 'male' },
-    { id: 'm5', name: 'Sam Lee', role: 'Engineer', skills: 'Backend, QA', capacity: 40, utilized: 14, projects: ['Northwind Portal', 'Cobalt Website'], gender: 'male' },
-  ],
-  risks: [
-    { id: 'r1', projectId: 'p2', type: 'Issue', description: 'Client approval pending', priority: 'Urgent', owner: 'Sandeep Rana', raised: '2026-08-28', due: '2026-09-01', status: 'Open', impact: 'Launch delay', resolution: 'Follow up daily until sign-off.' },
-    { id: 'r2', projectId: 'p3', type: 'Risk', description: 'Security review scope', priority: 'High', owner: 'Chris Wong', raised: '2026-08-30', due: '2026-09-12', status: 'Monitoring', impact: 'Launch risk', resolution: 'Schedule review with security team.' },
-    { id: 'r3', projectId: 'p1', type: 'Dependency', description: 'Content delivery delay', priority: 'Medium', owner: 'Maya Patel', raised: '2026-09-02', due: '2026-09-06', status: 'Open', impact: 'Timeline slip', resolution: 'Escalate to client sponsor.' },
-  ],
-  meetings: [
-    { id: 'mt1', title: 'Mercury weekly sync', date: '2026-09-05', time: '10:00 AM', participants: 'Marcus Bell, Chris Wong, Sandeep Rana', discussion: 'Sprint progress and security review.', decisions: 'Proceed with QA after security sign-off.', actionItems: 'Chris to schedule security review.', responsible: 'Chris Wong', deadline: '2026-09-07' },
-    { id: 'mt2', title: 'Atlas creative review', date: '2026-09-08', time: '02:00 PM', participants: 'Amelia Stone, Maya Patel, Sandeep Rana', discussion: 'Homepage concepts and content.', decisions: 'Approve concept B with revisions.', actionItems: 'Maya to update hero section.', responsible: 'Maya Patel', deadline: '2026-09-10' },
-    { id: 'mt3', title: 'Sprint standup', date: '2026-10-01', time: '10:00 AM', participants: 'All', discussion: 'Daily sync.', decisions: 'No blockers.', actionItems: 'Continue on track.', responsible: 'Sandeep Rana', deadline: '2026-10-01' },
-    { id: 'mt4', title: 'Design review', date: '2026-10-03', time: '02:00 PM', participants: 'Maya, Chris', discussion: 'Design system.', decisions: 'Approve tokens.', actionItems: 'Update handoff.', responsible: 'Maya Patel', deadline: '2026-10-06' },
-    { id: 'mt5', title: 'Project kickoff', date: '2026-10-06', time: '11:00 AM', participants: 'Northwind, Sandeep', discussion: 'Portal scope.', decisions: 'Proceed with prototype.', actionItems: 'Send invite.', responsible: 'Sandeep Rana', deadline: '2026-10-08' },
-  ],
-  documents: [
-    { id: 'd1', name: 'Atlas Rebrand — Brand guidelines.pdf', projectId: 'p1', updated: '2026-09-04', status: 'Shared', size: '2.4 MB' },
-    { id: 'd2', name: 'Mercury — Security review checklist', projectId: 'p3', updated: '2026-09-03', status: 'In review', size: '480 KB' },
-    { id: 'd3', name: 'Vertex — Launch brief.docx', projectId: 'p2', updated: '2026-08-28', status: 'Draft', size: '1.1 MB' },
-  ],
-  activity: [
-    { id: 'a1', message: 'Maya completed “Handoff documentation”', project: 'Atlas Rebrand', time: '32 minutes ago', type: 'task' },
-    { id: 'a2', message: 'New comment from Amelia Stone', project: 'Atlas Rebrand', time: '2 hours ago', type: 'comment' },
-    { id: 'a3', message: 'Task moved to blocked', project: 'Vertex Campaign', time: 'Yesterday', type: 'status' },
-    { id: 'a4', message: 'Risk raised: Security review scope', project: 'Mercury Mobile App', time: 'Yesterday', type: 'risk' },
-    { id: 'a5', message: 'Meeting scheduled: Atlas creative review', project: 'Atlas Rebrand', time: '2 days ago', type: 'meeting' },
-  ],
+  projects: [],
+  tasks: [],
+  clients: [],
+  team: [],
+  risks: [],
+  meetings: [],
+  documents: [],
+  activity: [],
+  aiFindings: [],
+  importBatches: [],
+  statusUpdates: [],
 } as unknown as AppData
 
 interface AppContextValue extends AppData {
@@ -265,12 +283,17 @@ interface AppContextValue extends AppData {
   updateDocument: (id: string, patch: Partial<DocumentItem>) => void
   deleteDocument: (id: string) => void
   logActivity: (message: string, project: string, type: Activity['type']) => void
+  applyImport: (payload: { clients: Omit<Client, 'id'>[]; projects: Omit<Project, 'id'>[]; batch: Omit<ImportBatch, 'id' | 'importedAt'> }) => ImportBatch
+  rollbackImport: (batchId: string) => void
+  addStatusUpdate: (update: Omit<StatusUpdate, 'id' | 'createdAt'>) => StatusUpdate | null
+  editStatusUpdate: (id: string, patch: Partial<StatusUpdate>, editedBy: string) => void
+  setHealthOverride: (projectId: string, override: Project['healthOverride']) => void
   resetData: () => void
 }
 
 const AppContext = createContext<AppContextValue | null>(null)
 
-const STORAGE_KEY = 'nexora-data-v5'
+const STORAGE_KEY = 'nexora-data-v6'
 
 function migrateTask(task: any): Task {
   const now = new Date().toISOString()
@@ -280,7 +303,9 @@ function migrateTask(task: any): Task {
     ? legacyComments.map((text: string) => ({ id: uid(), text, author: task.assignee || 'System', createdAt: now, updatedAt: now, isSystem: false }))
     : Array.isArray(task.taskComments)
       ? task.taskComments
-      : []
+      : legacyComments
+          .filter((c: any) => typeof c === 'string')
+          .map((text: string) => ({ id: uid(), text, author: task.assignee || 'System', createdAt: now, updatedAt: now, isSystem: false }))
   return {
     ...task,
     description: task.description ?? '',
@@ -294,15 +319,30 @@ function migrateTask(task: any): Task {
   }
 }
 
+/** Whether the workspace was empty when the app booted (no snapshot, a corrupt
+ *  one, or a stored seed with zero projects) — the restore effect uses this so
+ *  an empty seed snapshot can never block recovery. */
+let bootWasEmpty = true
+
 function load(): AppData {
-  const base = typeof window === 'undefined' ? seed : (window.localStorage.getItem(STORAGE_KEY) ? (JSON.parse(window.localStorage.getItem(STORAGE_KEY)!) as any) : seed)
   try {
-    const raw = base
+    const stored = typeof window === 'undefined' ? null : window.localStorage.getItem(STORAGE_KEY)
+    // Safety snapshot — a recovery copy of whatever is in storage before the app
+    // writes back. Kept in a separate key so a bad parse or partial write can
+    // never silently destroy the user's data.
+    if (stored && typeof window !== 'undefined' && !window.localStorage.getItem(`${STORAGE_KEY}-backup`)) {
+      try { window.localStorage.setItem(`${STORAGE_KEY}-backup`, stored) } catch { /* quota */ }
+    }
+    const raw = stored ? (JSON.parse(stored) as any) : seed
+    // Set only after a successful parse — corrupt JSON stays "empty" so restore can run
+    bootWasEmpty = (raw.projects?.length ?? 0) === 0
     return {
       ...raw,
       risks: ((raw.risks || []) as any[]).map(migrateLegacyRisk),
       tasks: ((raw.tasks || []) as any[]).map(migrateTask),
       aiFindings: (raw.aiFindings || []) as AiFinding[],
+      importBatches: (raw.importBatches || []) as ImportBatch[],
+      statusUpdates: (raw.statusUpdates || []) as StatusUpdate[],
     } as AppData
   } catch {
     return { ...seed, risks: (seed.risks || []).map(migrateLegacyRisk), tasks: (seed.tasks || []).map(migrateTask), aiFindings: [] } as AppData
@@ -321,9 +361,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setData((current) => ({ ...current, [key]: updater(current[key]) }))
     }
 
-    const logActivity = (message: string, project: string, type: Activity['type']) => {
+    const logActivity = (message: string, project: string, type: Activity['type'], extra?: { projectId?: string; author?: string }) => {
       patch('activity', (items) => [
-        { id: uid(), message, project, time: 'Just now', type },
+        { id: uid(), message, project, time: 'Just now', type, at: new Date().toISOString(), ...extra },
         ...(items as Activity[]),
       ].slice(0, 40) as Activity[])
     }
@@ -336,15 +376,45 @@ export function AppProvider({ children }: { children: ReactNode }) {
         logActivity(`Project created: ${project.name}`, project.name, 'project')
       },
       updateProject: (id, p) => {
+        const project = data.projects.find((item) => item.id === id)
         patch('projects', (items) => (items as Project[]).map((item) => (item.id === id ? { ...item, ...p } : item)))
+        // Renaming a project must not orphan team memberships or meeting links
+        // keyed by the project name.
+        if (p.name && project && p.name !== project.name) {
+          patch('team', (items) =>
+            (items as TeamMember[]).map((m) =>
+              (m.projects ?? []).includes(project.name)
+                ? { ...m, projects: m.projects.map((n) => (n === project.name ? p.name! : n)) }
+                : m,
+            ),
+          )
+          patch('meetings', (items) =>
+            (items as Meeting[]).map((m) =>
+              m.projectId === id ? { ...m, projectName: p.name } : m,
+            ),
+          )
+        }
         if (p.name || p.status || p.progress || p.health) {
-          const project = data.projects.find((item) => item.id === id)
-          logActivity(`Project updated: ${project?.name ?? id}`, project?.name ?? '', 'project')
+          logActivity(`Project updated: ${project?.name ?? id}`, p.name ?? project?.name ?? '', 'project')
         }
       },
       deleteProject: (id) => {
         const project = data.projects.find((item) => item.id === id)
         patch('projects', (items) => (items as Project[]).filter((item) => item.id !== id))
+        // Cascade: remove the project's tasks/documents and detach meetings,
+        // so nothing links to a deleted project.
+        patch('tasks', (items) => (items as Task[]).filter((t) => t.projectId !== id))
+        patch('documents', (items) => (items as DocumentItem[]).filter((d) => d.projectId !== id))
+        patch('meetings', (items) =>
+          (items as Meeting[]).map((m) => (m.projectId === id ? { ...m, projectId: undefined, projectName: undefined } : m)),
+        )
+        patch('team', (items) =>
+          (items as TeamMember[]).map((m) =>
+            project && (m.projects ?? []).includes(project.name)
+              ? { ...m, projects: m.projects.filter((n) => n !== project.name) }
+              : m,
+          ),
+        )
         if (project) logActivity(`Project archived: ${project.name}`, project.name, 'project')
       },
       addTask: (task) => {
@@ -474,6 +544,167 @@ export function AppProvider({ children }: { children: ReactNode }) {
       updateDocument: (id, p) => patch('documents', (items) => (items as DocumentItem[]).map((item) => (item.id === id ? { ...item, ...p } : item))),
       deleteDocument: (id) => patch('documents', (items) => (items as DocumentItem[]).filter((item) => item.id !== id)),
       logActivity,
+      applyImport: (payload) => {
+        // Single atomic commit — clients, projects and the batch record are
+        // written together so a partial import can never land.
+        const batchId = `imp-${uid()}`
+        const batch: ImportBatch = { ...payload.batch, id: batchId, importedAt: new Date().toISOString() }
+        const newClients = payload.clients.map((c) => ({
+          ...c,
+          id: uid(),
+          importMeta: c.importMeta ? { ...c.importMeta, batchId } : c.importMeta,
+        }))
+        const newProjects = payload.projects.map((p) => ({
+          ...p,
+          id: uid(),
+          importMeta: p.importMeta ? { ...p.importMeta, batchId } : p.importMeta,
+        }))
+        setData((current) => ({
+          ...current,
+          clients: [...current.clients, ...newClients],
+          projects: [...current.projects, ...newProjects],
+          importBatches: [...(current.importBatches ?? []), batch],
+          activity: [
+            { id: uid(), message: `Imported ${newProjects.length} projects from ${batch.fileName}`, project: '', time: 'Just now', type: 'project' as const, at: batch.importedAt },
+            ...current.activity,
+          ].slice(0, 40),
+        }))
+        return batch
+      },
+      rollbackImport: (batchId) =>
+        setData((current) => {
+          const removedIds = new Set(
+            current.projects.filter((p) => p.importMeta?.batchId === batchId).map((p) => p.id),
+          )
+          const removedNames = new Set(
+            current.projects.filter((p) => p.importMeta?.batchId === batchId).map((p) => p.name),
+          )
+          return {
+            ...current,
+            projects: current.projects.filter((p) => p.importMeta?.batchId !== batchId),
+            clients: current.clients.filter((c) => c.importMeta?.batchId !== batchId),
+            // Mirror deleteProject's cascade for anything linked to removed projects
+            tasks: current.tasks.filter((t) => !removedIds.has(t.projectId)),
+            documents: current.documents.filter((d) => !removedIds.has(d.projectId ?? '')),
+            meetings: current.meetings.map((m) =>
+              removedIds.has(m.projectId ?? '') ? { ...m, projectId: undefined, projectName: undefined } : m,
+            ),
+            team: current.team.map((m) =>
+              (m.projects ?? []).some((n) => removedNames.has(n))
+                ? { ...m, projects: m.projects.filter((n) => !removedNames.has(n)) }
+                : m,
+            ),
+            importBatches: (current.importBatches ?? []).map((b) => (b.id === batchId ? { ...b, rolledBack: true } : b)),
+            activity: [
+              { id: uid(), message: `Rolled back import ${batchId}`, project: '', time: 'Just now', type: 'project' as const, at: new Date().toISOString() },
+              ...current.activity,
+            ].slice(0, 40),
+          }
+        }),
+      addStatusUpdate: (input) => {
+        const project = data.projects.find((p) => p.id === input.projectId)
+        if (!project) return null
+
+        // Idempotency: an identical update saved moments later is a double-submit
+        const latest = data.statusUpdates
+          .filter((u) => u.projectId === input.projectId)
+          .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]
+        const samePayload =
+          latest &&
+          latest.status === input.status &&
+          latest.progress === input.progress &&
+          ['workCompleted', 'currentWork', 'pendingWork', 'blockers', 'clientUpdate', 'risksDependencies', 'nextSteps', 'expectedCompletion', 'internalRemarks']
+            .every((k) => (latest as any)[k] === (input as any)[k])
+        if (samePayload && Date.now() - new Date(latest.createdAt).getTime() < 2 * 60 * 1000) {
+          return latest
+        }
+
+        const update: StatusUpdate = { ...input, id: uid(), createdAt: new Date().toISOString() }
+        const deadlineChanged = input.expectedCompletion && input.expectedCompletion !== project.end
+        const prevProgress = project.progress
+
+        // Single atomic commit — report, project sync, and activity entry land together
+        setData((current) => {
+          const projectNow = current.projects.find((p) => p.id === input.projectId)
+          const messages = [
+            { id: uid(), message: `Status report: ${project.name} → ${input.status}, ${input.progress}%`, project: project.name, time: 'Just now', type: 'status' as const, at: update.createdAt, projectId: project.id, author: input.author },
+          ]
+          if (input.progress !== prevProgress) {
+            messages.push({ id: uid(), message: `Progress changed: ${project.name} ${prevProgress}% → ${input.progress}%`, project: project.name, time: 'Just now', type: 'status' as const, at: update.createdAt, projectId: project.id, author: input.author })
+          }
+          if (input.blockers?.trim()) {
+            messages.push({ id: uid(), message: `Blocker reported: ${project.name} — ${input.blockers.trim().slice(0, 80)}`, project: project.name, time: 'Just now', type: 'status' as const, at: update.createdAt, projectId: project.id, author: input.author })
+          }
+          if (deadlineChanged) {
+            messages.push({ id: uid(), message: `Deadline revised: ${project.name} ${projectNow?.end || '—'} → ${input.expectedCompletion}`, project: project.name, time: 'Just now', type: 'status' as const, at: update.createdAt, projectId: project.id, author: input.author })
+          }
+          return {
+            ...current,
+            statusUpdates: [update, ...current.statusUpdates],
+            projects: current.projects.map((p) =>
+              p.id === input.projectId
+                ? {
+                    ...p,
+                    status: input.status,
+                    progress: Math.min(100, Math.max(0, input.progress)),
+                    ...(deadlineChanged ? { end: input.expectedCompletion } : {}),
+                    lastReportAt: update.createdAt,
+                    lastReportBy: input.author,
+                  }
+                : p,
+            ),
+            activity: [...messages, ...current.activity].slice(0, 40),
+          }
+        })
+        return update
+      },
+      editStatusUpdate: (id, p, editedBy) => {
+        const existing = data.statusUpdates.find((u) => u.id === id)
+        if (!existing) return
+        const changed = (Object.keys(p) as (keyof StatusUpdate)[]).filter(
+          (k) => p[k] !== undefined && JSON.stringify(p[k]) !== JSON.stringify(existing[k]),
+        )
+        if (!changed.length) return
+        const entry = {
+          editedAt: new Date().toISOString(),
+          editedBy,
+          changes: `Edited: ${changed.join(', ')}`,
+        }
+        patch('statusUpdates', (items) =>
+          (items as StatusUpdate[]).map((u) =>
+            u.id === id ? { ...u, ...p, editHistory: [...(u.editHistory ?? []), entry] } : u,
+          ),
+        )
+        // If the edited report is still the project's latest, re-sync the project summary
+        const isLatest = !data.statusUpdates.some(
+          (u) => u.projectId === existing.projectId && u.id !== id && u.createdAt > existing.createdAt,
+        )
+        if (isLatest) {
+          const merged = { ...existing, ...p }
+          patch('projects', (items) =>
+            (items as Project[]).map((proj) =>
+              proj.id === existing.projectId
+                ? {
+                    ...proj,
+                    status: merged.status,
+                    progress: Math.min(100, Math.max(0, merged.progress)),
+                    ...(merged.expectedCompletion ? { end: merged.expectedCompletion } : {}),
+                  }
+                : proj,
+            ),
+          )
+        }
+      },
+      setHealthOverride: (projectId, override) => {
+        const project = data.projects.find((p) => p.id === projectId)
+        if (!project) return
+        patch('projects', (items) =>
+          (items as Project[]).map((p) => (p.id === projectId ? { ...p, healthOverride: override ?? undefined } : p)),
+        )
+        if (override) {
+          logActivity(`Health set to ${override.health}: ${project.name} — ${override.reason}`, project.name, 'status', { projectId, author: override.author })
+        }
+      },
       resetData: () =>
         setData({
           ...seed,
@@ -483,6 +714,50 @@ export function AppProvider({ children }: { children: ReactNode }) {
         } as AppData),
     }
   }, [data])
+
+  // One-time restore: if storage was cleared (empty workspace, no stored
+  // snapshot), pull the bundled Excel backup from /public and replay the
+  // import pipeline. A flag prevents re-importing after an intentional reset.
+  useEffect(() => {
+    const FLAG = 'nexora-restore-v1'
+    if (!bootWasEmpty || window.localStorage.getItem(FLAG)) return
+    window.localStorage.setItem(FLAG, 'pending')
+    fetch('/Project_Report.xlsx')
+      .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error('backup file missing'))))
+      .then(async (buf) => {
+        const XLSX = await loadXlsx()
+        const wb = XLSX.read(buf, { type: 'array', cellDates: false })
+        const sheet = wb.SheetNames.find((n: string) => n.trim().toLowerCase() === 'new projects_july')
+        if (!sheet) throw new Error('sheet missing')
+        const rows2D = XLSX.utils.sheet_to_json(wb.Sheets[sheet], { header: 1, defval: '' }) as unknown[][]
+        const extracted = extractProjectRows(rows2D)
+        if (!extracted || extracted.rows.length === 0) throw new Error('no rows')
+        const fileName = 'Project_Report.xlsx (auto-restore)'
+        const plan = buildImportPlan({
+          sheetName: sheet,
+          headerRow: extracted.headerRow,
+          sourceRows: extracted.rows,
+          existing: { projects: [], clients: [] },
+          fileName,
+        })
+        const payload = buildCommitPayload(plan, fileName, `rest-${Date.now()}`)
+        // Race guard — a manual import that landed while the fetch was
+        // in-flight must not be duplicated by the restore.
+        try {
+          const cur = window.localStorage.getItem(STORAGE_KEY)
+          if (cur && (JSON.parse(cur).projects?.length ?? 0) > 0) {
+            window.localStorage.setItem(FLAG, 'done')
+            return
+          }
+        } catch { /* fall through to apply */ }
+        value.applyImport(payload)
+        window.localStorage.setItem(FLAG, 'done')
+      })
+      .catch(() => {
+        window.localStorage.removeItem(FLAG) // allow retry on next load
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
 }

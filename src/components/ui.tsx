@@ -1,4 +1,4 @@
-import { useState, type ButtonHTMLAttributes, type HTMLAttributes, type ReactNode } from 'react'
+import { useEffect, useState, type ButtonHTMLAttributes, type HTMLAttributes, type ReactNode } from 'react'
 import clsx from 'clsx'
 
 export function Card({ className, children, ...props }: HTMLAttributes<HTMLDivElement>) {
@@ -67,12 +67,95 @@ export function Button({ variant = 'primary', className, children, ...props }: B
   )
 }
 
+/** Two-slice pie chart showing completion — filled wedge = progress, light = remaining. */
+export function ProgressPie({ value, size = 48 }: { value: number; size?: number }) {
+  const pct = Math.min(100, Math.max(0, value))
+  const r = size / 2 - 3
+  const cx = size / 2
+  const cy = size / 2
+  const rad = (((pct / 100) * 360 - 90) * Math.PI) / 180
+  const x = cx + r * Math.cos(rad)
+  const y = cy + r * Math.sin(rad)
+  const hole = r * 0.64
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label={`${Math.round(pct)}% complete`}>
+      <circle cx={cx} cy={cy} r={r} fill="#eeeeeb" />
+      {pct >= 100 ? (
+        <circle cx={cx} cy={cy} r={r} fill="#252829" />
+      ) : pct > 0 ? (
+        <path d={`M ${cx} ${cy} L ${cx} ${cy - r} A ${r} ${r} 0 ${pct > 50 ? 1 : 0} 1 ${x} ${y} Z`} fill="#252829" />
+      ) : null}
+      <circle cx={cx} cy={cy} r={hole} fill="#fff" />
+      <text
+        x={cx}
+        y={cy}
+        textAnchor="middle"
+        dy="0.36em"
+        fontSize={Math.round(size * (pct >= 100 ? 0.17 : 0.2))}
+        fontWeight={600}
+        fill="#252829"
+        {...(pct >= 100 ? { textLength: hole * 1.55, lengthAdjust: 'spacingAndGlyphs' } : {})}
+      >
+        {Math.round(pct)}%
+      </text>
+    </svg>
+  )
+}
+
+/** Circular ring whose arc length equals `value`% — for dark surfaces. */
+export function ProgressRing({
+  value,
+  size = 66,
+  stroke = 7,
+  track = '#5a5d5b',
+  fill = '#3b8b67',
+  textColor = '#fff',
+}: {
+  value: number
+  size?: number
+  stroke?: number
+  track?: string
+  fill?: string
+  textColor?: string
+}) {
+  const pct = Math.min(100, Math.max(0, value))
+  const r = (size - stroke) / 2
+  const c = 2 * Math.PI * r
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label={`${Math.round(pct)}% complete`}>
+      <circle cx={size / 2} cy={size / 2} r={r} stroke={track} strokeWidth={stroke} fill="none" />
+      {pct > 0 && (
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          stroke={fill}
+          strokeWidth={stroke}
+          fill="none"
+          strokeDasharray={c}
+          strokeDashoffset={c - (pct / 100) * c}
+          strokeLinecap="round"
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+        />
+      )}
+      <text x={size / 2} y={size / 2} textAnchor="middle" dy="0.36em" fontSize={Math.round(size * 0.24)} fontWeight={600} fill={textColor}>
+        {Math.round(pct)}%
+      </text>
+    </svg>
+  )
+}
+
 export function ProgressBar({ value, className }: { value: number; className?: string }) {
+  const [w, setW] = useState(0)
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setW(Math.min(100, Math.max(0, value))))
+    return () => cancelAnimationFrame(id)
+  }, [value])
   return (
     <div className={clsx('h-[7px] w-full overflow-hidden rounded-full bg-[#eeeeeb]', className)}>
       <div
         className="h-full rounded-full bg-ink transition-all duration-700 ease-out"
-        style={{ width: `${Math.min(100, Math.max(0, value))}%` }}
+        style={{ width: `${w}%` }}
       />
     </div>
   )
@@ -148,17 +231,19 @@ export function Modal({
   onClose,
   children,
   footer,
+  wide = false,
 }: {
   open: boolean
   title: string
   onClose: () => void
   children: ReactNode
   footer?: ReactNode
+  wide?: boolean
 }) {
   if (!open) return null
   return (
     <div className="modal-backdrop-enter fixed inset-0 z-50 grid place-items-center bg-[rgba(20,21,21,0.38)] p-3 sm:p-5">
-      <div className="modal-panel-enter max-h-[92dvh] w-full max-w-[620px] overflow-auto rounded-2xl bg-white p-4 shadow-[0_25px_70px_rgba(0,0,0,0.2)] sm:p-6">
+      <div className={`modal-panel-enter max-h-[92dvh] w-full ${wide ? 'max-w-[980px]' : 'max-w-[620px]'} overflow-auto rounded-2xl bg-white p-4 shadow-[0_25px_70px_rgba(0,0,0,0.2)] sm:p-6`}>
         <div className="mb-5 flex items-center justify-between">
           <h2 className="font-heading text-[20px] font-semibold text-ink">{title}</h2>
           <button onClick={onClose} className="text-[22px] leading-none text-muted hover:text-ink" aria-label="Close">

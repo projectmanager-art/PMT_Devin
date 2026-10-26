@@ -95,11 +95,11 @@ body {
 }
 
 .modal-backdrop-enter {
-  animation: modal-backdrop-in 420ms ease-out both;
+  animation: modal-backdrop-in 220ms ease-out both;
 }
 
 .modal-panel-enter {
-  animation: modal-panel-in 560ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: modal-panel-in 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
   transform-origin: center;
 }
 
@@ -113,9 +113,79 @@ body {
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+.page-enter {
+  animation: page-enter-in 340ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+@keyframes page-enter-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.997); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.section-enter {
+  animation: section-in 260ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  transform-origin: top;
+}
+
+@keyframes section-in {
+  from { opacity: 0; transform: translateY(-8px) scaleY(0.98); }
+  to { opacity: 1; transform: translateY(0) scaleY(1); }
+}
+
+.dropdown-enter {
+  animation: dropdown-in 180ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  transform-origin: top right;
+}
+
+@keyframes dropdown-in {
+  from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.form-stagger > * {
+  animation: field-in 300ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+@keyframes field-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.form-stagger > *:nth-child(1) { animation-delay: 30ms; }
+.form-stagger > *:nth-child(2) { animation-delay: 55ms; }
+.form-stagger > *:nth-child(3) { animation-delay: 80ms; }
+.form-stagger > *:nth-child(4) { animation-delay: 105ms; }
+.form-stagger > *:nth-child(5) { animation-delay: 130ms; }
+.form-stagger > *:nth-child(6) { animation-delay: 155ms; }
+.form-stagger > *:nth-child(7) { animation-delay: 180ms; }
+.form-stagger > *:nth-child(8) { animation-delay: 205ms; }
+.form-stagger > *:nth-child(9) { animation-delay: 230ms; }
+.form-stagger > *:nth-child(10) { animation-delay: 255ms; }
+.form-stagger > *:nth-child(n+11) { animation-delay: 280ms; }
+
 @media (prefers-reduced-motion: reduce) {
   .modal-backdrop-enter,
-  .modal-panel-enter {
+  .modal-panel-enter,
+  .page-enter,
+  .section-enter,
+  .dropdown-enter,
+  .form-stagger > * {
     animation-duration: 1ms;
+    animation-delay: 0ms;
   }
+}
+
+/* Recharts draws a default focus outline on chart elements when clicked — hide it. */
+.recharts-wrapper :focus {
+  outline: none;
+}
+.recharts-sector,
+.recharts-pie-sector {
+  cursor: default;
+}
+
+/* Hide the browser caret-browsing (F7) text cursor outside editable fields,
+   so clicking anywhere never leaves a stray blinking caret. */
+*:not(input):not(textarea):not(select):not([contenteditable="true"]) {
+  caret-color: transparent;
 }

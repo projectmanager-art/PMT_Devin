@@ -1,33 +1,33 @@
 /**
- * SprintIQ - Enterprise Red + Black + Dark Graphite Theme
+ * SprintIQ - NEXORA Light Theme
  */
 
 :root {
-  --bg-main: #0a0c10;
-  --bg-sidebar: #0e1117;
-  --bg-card: #141721;
-  --bg-card-hover: #1b202e;
-  --bg-card-header: #181c28;
-  --bg-input: #0e1117;
-  
-  --border-subtle: #232736;
-  --border-highlight: #343a4e;
-  
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
-  
+  --bg-main: #f4f4f1;
+  --bg-sidebar: #fafaf8;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f4f4f1;
+  --bg-card-header: #fafaf8;
+  --bg-input: #f6f6f3;
+
+  --border-subtle: #e6e6e1;
+  --border-highlight: #d4d4cf;
+
+  --text-primary: #252829;
+  --text-secondary: #5f6463;
+  --text-muted: #8d918e;
+
   --accent-red: #e63946;
-  --accent-red-hover: #ff4d6d;
-  --accent-red-glow: rgba(230, 57, 70, 0.25);
-  --accent-red-bg: rgba(230, 57, 70, 0.12);
-  
-  --rag-green: #2ec4b6;
-  --rag-green-bg: rgba(46, 196, 182, 0.15);
-  --rag-amber: #ffb703;
-  --rag-amber-bg: rgba(255, 183, 3, 0.15);
+  --accent-red-hover: #d42f3c;
+  --accent-red-glow: rgba(230, 57, 70, 0.14);
+  --accent-red-bg: rgba(230, 57, 70, 0.07);
+
+  --rag-green: #0d9488;
+  --rag-green-bg: rgba(13, 148, 136, 0.12);
+  --rag-amber: #d97706;
+  --rag-amber-bg: rgba(217, 119, 6, 0.12);
   --rag-red: #e63946;
-  --rag-red-bg: rgba(230, 57, 70, 0.15);
+  --rag-red-bg: rgba(230, 57, 70, 0.10);
   
   --font-main: 'Afacad', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
@@ -197,7 +197,7 @@ button, input, select, textarea,
 .sidebar-footer {
   border-top: 1px solid var(--border-subtle);
   padding: 16px;
-  background-color: rgba(0, 0, 0, 0.2);
+  background-color: rgba(0, 0, 0, 0.03);
   max-height: 120px;
   opacity: 1;
   overflow: hidden;
@@ -399,12 +399,13 @@ button, input, select, textarea,
   border: 1px solid var(--border-subtle);
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
   transition: border-color 0.2s;
 }
 
 .card:hover {
   border-color: var(--border-highlight);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
 }
 
 .card-header {
@@ -437,7 +438,7 @@ button, input, select, textarea,
 
 /* Executive Banner */
 .executive-banner {
-  background: linear-gradient(135deg, rgba(230, 57, 70, 0.1) 0%, rgba(18, 20, 26, 0.8) 100%);
+  background: linear-gradient(135deg, rgba(230, 57, 70, 0.07) 0%, #ffffff 100%);
   border: 1px solid rgba(230, 57, 70, 0.3);
   border-radius: 12px;
   padding: 22px 26px;
@@ -501,12 +502,13 @@ button, input, select, textarea,
   flex-direction: column;
   gap: 8px;
   position: relative;
-  transition: transform 0.15s, border-color 0.15s;
+  transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
 }
 
 .kpi-card:hover {
-  transform: translateY(-2px);
+  transform: translateY(-3px);
   border-color: var(--border-highlight);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.07);
 }
 
 .kpi-header {
@@ -633,8 +635,8 @@ button, input, select, textarea,
 
 /* Priority & Status Badges */
 .badge-priority-high {
-  color: #ff4d6d;
-  background: rgba(230, 57, 70, 0.15);
+  color: var(--rag-red);
+  background: rgba(230, 57, 70, 0.12);
   padding: 3px 8px;
   border-radius: 4px;
   font-weight: 700;
@@ -642,8 +644,8 @@ button, input, select, textarea,
 }
 
 .badge-priority-med {
-  color: #ffb703;
-  background: rgba(255, 183, 3, 0.15);
+  color: var(--rag-amber);
+  background: rgba(217, 119, 6, 0.12);
   padding: 3px 8px;
   border-radius: 4px;
   font-weight: 600;
@@ -651,8 +653,8 @@ button, input, select, textarea,
 }
 
 .badge-priority-low {
-  color: #2ec4b6;
-  background: rgba(46, 196, 182, 0.15);
+  color: var(--rag-green);
+  background: rgba(13, 148, 136, 0.12);
   padding: 3px 8px;
   border-radius: 4px;
   font-weight: 600;
@@ -661,8 +663,8 @@ button, input, select, textarea,
 
 /* Status & RAG Helper Badges */
 .badge-green {
-  color: #2ec4b6;
-  background: rgba(46, 196, 182, 0.15);
+  color: var(--rag-green);
+  background: rgba(13, 148, 136, 0.12);
   padding: 3px 8px;
   border-radius: 4px;
   font-weight: 700;
@@ -671,8 +673,8 @@ button, input, select, textarea,
 }
 
 .badge-amber {
-  color: #ffb703;
-  background: rgba(255, 183, 3, 0.15);
+  color: var(--rag-amber);
+  background: rgba(217, 119, 6, 0.12);
   padding: 3px 8px;
   border-radius: 4px;
   font-weight: 700;
@@ -681,8 +683,8 @@ button, input, select, textarea,
 }
 
 .badge-red {
-  color: #e63946;
-  background: rgba(230, 57, 70, 0.15);
+  color: var(--rag-red);
+  background: rgba(230, 57, 70, 0.12);
   padding: 3px 8px;
   border-radius: 4px;
   font-weight: 700;
@@ -738,7 +740,7 @@ button, input, select, textarea,
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
-  background: rgba(0, 0, 0, 0.25);
+  background: #f4f4f1;
   padding: 10px;
   border-radius: 8px;
   text-align: center;
@@ -774,7 +776,7 @@ button, input, select, textarea,
   padding: 2px 8px;
   border-radius: 4px;
   color: var(--text-secondary);
-  background: rgba(255, 255, 255, 0.06);
+  background: #f0f0ed;
   border: 1px solid var(--border-subtle);
   white-space: nowrap;
 }
@@ -869,7 +871,7 @@ button, input, select, textarea,
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.75);
+  background: rgba(25, 27, 30, 0.45);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
@@ -894,7 +896,7 @@ button, input, select, textarea,
   max-height: 90vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.18);
   transform: scale(0.96);
   transition: transform 0.2s ease;
 }
@@ -1171,7 +1173,7 @@ button, input, select, textarea,
   display: flex;
   align-items: center;
   gap: 10px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
   animation: slideIn 0.25s ease;
 }
 
@@ -1472,7 +1474,7 @@ button, input, select, textarea,
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: var(--bg-main, #0a0c10);
+  background: var(--bg-main, #f4f4f1);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1512,3 +1514,14 @@ body.app-loaded .app-container {
 }
 
 
+
+/* Hide the browser caret-browsing (F7) text cursor outside editable fields. */
+*:not(input):not(textarea):not(select):not([contenteditable="true"]) {
+  caret-color: transparent;
+}
+
+/* No sprint data — hide placeholder report chrome behind the empty state */
+.no-sprint-data .page-body,
+.no-sprint-data .filter-toolbar {
+  display: none !important;
+}

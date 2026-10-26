@@ -1,48 +1,23 @@
 // @ts-nocheck
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
-const today = new Date().toISOString().slice(0, 10)
+// today is computed per-render via todayKey() to avoid stale module-level dates
 import {
-  Activity,
   AlertTriangle,
-  ArrowRight,
   BarChart3,
-  Calendar,
   CheckCircle2,
-  CheckSquare,
-  Clock,
-  FileText,
-  Filter,
-  Flag,
-  FolderKanban,
   LayoutDashboard,
   List,
   ListTodo,
-  Lock,
-  MoreHorizontal,
   Plus,
-  RefreshCcw,
   Search,
-  Settings,
   Target,
-  Timer,
-  Trash2,
-  TrendingUp,
-  Trophy,
-  UserRound,
   Users,
 } from 'lucide-react'
 import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
   CartesianGrid,
-  Legend,
   Line,
   LineChart,
-  Pie,
-  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -50,19 +25,15 @@ import {
 } from 'recharts'
 import {
   type BacklogItem,
-  type Blocker,
-  type Retrospective,
   type Sprint,
-  type SprintStatus,
-  calculateEmployeePerformance,
   getBacklogItems,
   getSprintHealthScore,
   getSprintItems,
   getSprintKPIs,
   getSprintScopeChanges,
-  getSprintTotalHours,
 } from '../lib/sprints'
 import { useSprints } from '../lib/sprintStore'
+import { todayKey } from '../lib/dates'
 import { useApp, type TeamMember } from '../store'
 import { Badge, Button, Card, CardTitle, EmptyState, Field, FormErrorSummary, Modal, TextButton, inputClass, invalidInputClass } from '../components/ui'
 
@@ -71,39 +42,21 @@ type TabKey =
   | 'planning'
   | 'productBacklog'
   | 'sprintBacklog'
-  | 'board'
-  | 'calendar'
   | 'capacity'
   | 'analytics'
   | 'blockers'
   | 'review'
-  | 'retrospective'
-  | 'performance'
-  | 'history'
 
 const tabs: { key: TabKey; label: string; icon: React.ElementType }[] = [
   { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { key: 'planning', label: 'Planning', icon: Target },
   { key: 'productBacklog', label: 'Product Backlog', icon: List },
   { key: 'sprintBacklog', label: 'Sprint Backlog', icon: ListTodo },
-  { key: 'board', label: 'Sprint Board', icon: FolderKanban },
-  { key: 'calendar', label: 'Calendar', icon: Calendar },
   { key: 'capacity', label: 'Capacity', icon: Users },
   { key: 'analytics', label: 'Progress & Analytics', icon: BarChart3 },
   { key: 'blockers', label: 'Blockers', icon: AlertTriangle },
   { key: 'review', label: 'Sprint Review', icon: CheckCircle2 },
-  { key: 'retrospective', label: 'Retrospective', icon: RefreshCcw },
-  { key: 'performance', label: 'Performance', icon: Trophy },
-  { key: 'history', label: 'History', icon: Clock },
 ]
-
-const statusColor: Record<SprintStatus, string> = {
-  Planned: 'bg-[#dbeafe] text-[#2563eb]',
-  'Sprint Ready': 'bg-[#fef3c7] text-[#d97706]',
-  Active: 'bg-[#dcfce7] text-[#16a34a]',
-  Completed: 'bg-[#f0f1ee] text-[#656966]',
-  Cancelled: 'bg-[#fee2e2] text-[#dc2626]',
-}
 
 const taskTone: Record<BacklogItem['status'], 'neutral' | 'green' | 'amber' | 'red' | 'blue' | 'dark'> = {
   Backlog: 'neutral',
@@ -125,7 +78,7 @@ function KpiCard({ label, value, sub, tone = 'neutral', onClick }: { label: stri
   )
 }
 
-export function Sprints() {
+export function Sprints({ embedded = false }: { embedded?: boolean }) {
   const sprints = useSprints()
   const app = useApp()
   const [tab, setTab] = useState<TabKey>('dashboard')
@@ -137,28 +90,7 @@ export function Sprints() {
   const activeItems = useMemo(() => (activeSprint ? getSprintItems(activeSprint.id, sprints) : []), [activeSprint, sprints])
   const kpi = useMemo(() => (activeSprint ? getSprintKPIs(activeSprint, sprints) : null), [activeSprint, sprints])
   const health = useMemo(() => (activeSprint ? getSprintHealthScore(activeSprint, sprints) : null), [activeSprint, sprints])
-  const performance = useMemo(
-    () => (activeSprint ? calculateEmployeePerformance(activeSprint, sprints, app.team.map((t) => ({ name: t.name, role: t.role }))) : []),
-    [activeSprint, sprints, app.team],
-  )
-  const teamLookup = useMemo(() => new Map(app.team.map((t) => [t.name, t])), [app.team])
   const project = useMemo(() => app.projects.find((p) => p.id === activeSprint?.projectId), [activeSprint, app.projects])
-
-  const statusCounts = useMemo(() => {
-    const counts: Record<string, number> = {}
-    activeItems.forEach((i) => (counts[i.status] = (counts[i.status] ?? 0) + 1))
-    return Object.entries(counts).map(([name, value]) => ({ name, value }))
-  }, [activeItems])
-
-  const workloadData = useMemo(
-    () =>
-      app.team.map((m) => {
-        const items = activeItems.filter((i) => i.assignee === m.name)
-        const hours = items.reduce((s, i) => s + i.estimatedHours, 0)
-        return { name: m.name, hours, capacity: m.capacity }
-      }),
-    [activeItems, app.team],
-  )
 
   const burndownData = useMemo(
     () => sprints.dailyMetrics.filter((m) => m.sprintId === activeSprint?.id),
@@ -170,19 +102,25 @@ export function Sprints() {
     [activeSprint, sprints],
   )
 
-  const StatusBadge = ({ status }: { status: SprintStatus }) => <span className={`rounded-full px-2 py-[2px] text-[10px] font-bold ${statusColor[status]}`}>{status}</span>
+  const sprintMeta = useMemo(() => {
+    if (!activeSprint) return null
+    const start = new Date(`${activeSprint.start}T00:00:00`)
+    const end = new Date(`${activeSprint.end}T00:00:00`)
+    const totalDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000) + 1)
+    const elapsedDays = Math.min(totalDays, Math.max(0, Math.floor((Date.now() - start.getTime()) / 86400000) + 1))
+    const fmt = (d: string) => new Date(`${d}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    return {
+      totalDays,
+      elapsedDays,
+      remainingDays: Math.max(0, totalDays - elapsedDays),
+      startLabel: fmt(activeSprint.start),
+      endLabel: fmt(activeSprint.end),
+    }
+  }, [activeSprint])
 
   return (
-    <div className="mx-auto w-full max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8">
-      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <p className="mb-2 text-[10px] font-semibold uppercase tracking-[1.5px] text-[#929692]">Sprints</p>
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="font-heading text-[28px] font-semibold tracking-tight text-ink">{activeSprint?.name ?? 'Sprint Module'}</h1>
-            {activeSprint && <StatusBadge status={activeSprint.status} />}
-          </div>
-          <p className="mt-2 max-w-[720px] text-[13px] text-muted">{activeSprint?.goal ?? 'Plan, execute and review agile sprints with connected performance analytics.'}</p>
-        </div>
+    <div className={embedded ? 'w-full' : 'mx-auto w-full max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8'}>
+      <div className="mb-6 flex flex-wrap items-center justify-end gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <select
             className="h-[36px] rounded-lg border border-line bg-white px-3 text-[11px] text-ink outline-none"
@@ -220,13 +158,50 @@ export function Sprints() {
         ))}
       </div>
 
+      <div key={tab} className="page-enter">
+      {!activeSprint && tab !== 'planning' && tab !== 'productBacklog' && (
+        <EmptyState
+          title="No sprints yet"
+          description="Create your first sprint to start planning and tracking sprint work."
+          action={<Button onClick={() => setSprintFormOpen(true)}><span className="inline-flex items-center gap-1.5"><Plus size={13} />New sprint</span></Button>}
+        />
+      )}
       {tab === 'dashboard' && activeSprint && kpi && health && (
         <div className="space-y-5">
+          {sprintMeta && (
+            <Card>
+              <CardTitle title="Sprint Details" subtitle={`Sprint ${activeSprint.number} · ${sprintMeta.startLabel} → ${sprintMeta.endLabel}`} />
+              <div className="grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-3 lg:grid-cols-6">
+                {[
+                  { label: 'Project', value: project?.name ?? '—' },
+                  { label: 'Owner', value: activeSprint.owner || '—' },
+                  { label: 'Duration', value: `${activeSprint.workingDays} working days · ${activeSprint.hoursPerDay}h/day` },
+                  { label: 'Team', value: `${activeSprint.members.length} member${activeSprint.members.length === 1 ? '' : 's'}` },
+                  { label: 'Velocity', value: `${kpi.velocity} pts` },
+                  { label: 'Timeline', value: `Day ${sprintMeta.elapsedDays} of ${sprintMeta.totalDays}` },
+                ].map((d) => (
+                  <div key={d.label} className="min-w-0">
+                    <p className="text-[9px] font-semibold uppercase tracking-wider text-muted">{d.label}</p>
+                    <p className="mt-1 truncate text-[12px] font-semibold text-ink" title={d.value}>{d.value}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4">
+                <div className="mb-1 flex justify-between text-[10px] text-muted">
+                  <span>Elapsed</span>
+                  <span>{sprintMeta.remainingDays} day{sprintMeta.remainingDays === 1 ? '' : 's'} remaining</span>
+                </div>
+                <div className="h-1.5 overflow-hidden rounded-full bg-[#eeeeeb]">
+                  <div className="h-full rounded-full bg-blue transition-all" style={{ width: `${Math.min(100, (sprintMeta.elapsedDays / sprintMeta.totalDays) * 100)}%` }} />
+                </div>
+              </div>
+            </Card>
+          )}
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
             <KpiCard label="Story Points" value={kpi.totalPoints} onClick={() => setTab('sprintBacklog')} />
             <KpiCard label="Planned Tasks" value={kpi.plannedTasks} onClick={() => setTab('sprintBacklog')} />
-            <KpiCard label="Completed" value={kpi.completedTasks} tone="green" onClick={() => setTab('board')} />
-            <KpiCard label="In Progress" value={kpi.inProgress} tone="blue" onClick={() => setTab('board')} />
+            <KpiCard label="Completed" value={kpi.completedTasks} tone="green" onClick={() => setTab('sprintBacklog')} />
+            <KpiCard label="In Progress" value={kpi.inProgress} tone="blue" onClick={() => setTab('sprintBacklog')} />
             <KpiCard label="Blocked" value={kpi.blocked} tone={kpi.blocked ? 'red' : 'neutral'} onClick={() => setTab('blockers')} />
             <KpiCard label="Pending" value={kpi.pending} onClick={() => setTab('sprintBacklog')} />
             <KpiCard label="Completion %" value={`${kpi.completion}%`} tone={kpi.completion >= 80 ? 'green' : kpi.completion >= 50 ? 'amber' : 'red'} onClick={() => setTab('analytics')} />
@@ -238,77 +213,54 @@ export function Sprints() {
           </div>
 
           <Card>
-            <CardTitle title="Sprint Health" subtitle={`Score: ${health.score}/100 — ${health.status}`} />
-            <div className="flex flex-wrap items-center gap-2">
-              {health.status === 'Healthy' ? <CheckCircle2 size={16} className="text-green" /> : health.status === 'At Risk' ? <AlertTriangle size={16} className="text-amber" /> : <AlertTriangle size={16} className="text-red" />}
-              <span className={`text-[14px] font-semibold ${health.status === 'Healthy' ? 'text-green' : health.status === 'At Risk' ? 'text-amber' : 'text-red'}`}>{health.status}</span>
+            <CardTitle title="Sprint Health" subtitle="Overall assessment based on progress, blocked work and scope changes" />
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-8">
+              <div className="flex items-center gap-4">
+                <div className="relative h-[84px] w-[84px] shrink-0">
+                  <svg viewBox="0 0 84 84" className="h-full w-full -rotate-90">
+                    <circle cx="42" cy="42" r="36" fill="none" stroke="#eeeeeb" strokeWidth="8" />
+                    <circle
+                      cx="42"
+                      cy="42"
+                      r="36"
+                      fill="none"
+                      stroke={health.status === 'Healthy' ? '#16a34a' : health.status === 'At Risk' ? '#d97706' : '#dc2626'}
+                      strokeWidth="8"
+                      strokeLinecap="round"
+                      strokeDasharray={`${(Math.min(100, Math.max(0, health.score)) / 100) * 2 * Math.PI * 36} ${2 * Math.PI * 36}`}
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="font-heading text-[17px] font-semibold leading-none text-ink">{health.score}</span>
+                    <span className="text-[8px] text-muted">/ 100</span>
+                  </div>
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    {health.status === 'Healthy' ? <CheckCircle2 size={16} className="text-green" /> : <AlertTriangle size={16} className={health.status === 'At Risk' ? 'text-amber' : 'text-red'} />}
+                    <p className={`text-[15px] font-semibold ${health.status === 'Healthy' ? 'text-green' : health.status === 'At Risk' ? 'text-amber' : 'text-red'}`}>{health.status}</p>
+                  </div>
+                  <p className="mt-0.5 text-[10px] text-muted">Sprint health score</p>
+                </div>
+              </div>
+              <div className="min-w-0 flex-1 border-t border-line pt-4 sm:border-l sm:border-t-0 sm:pl-8 sm:pt-0">
+                <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted">{health.reasons.length ? 'Issues affecting this sprint' : 'No issues detected'}</p>
+                {health.reasons.length > 0 ? (
+                  <ul className="space-y-1.5">
+                    {health.reasons.map((r, i) => (
+                      <li key={i} className="flex items-start gap-2 text-[12px] text-ink">
+                        <AlertTriangle size={12} className="mt-[3px] shrink-0 text-amber" />
+                        <span>{r}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="flex items-center gap-2 text-[12px] text-muted"><CheckCircle2 size={13} className="shrink-0 text-green" /> Everything is on track for this sprint.</p>
+                )}
+              </div>
             </div>
-            {health.reasons.length > 0 && (
-              <ul className="mt-2 list-disc pl-4 text-[12px] text-muted">
-                {health.reasons.map((r, i) => <li key={i}>{r}</li>)}
-              </ul>
-            )}
           </Card>
 
-          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-            <Card>
-              <CardTitle title="Burndown" subtitle="Remaining hours vs. ideal trend" />
-              <div className="h-[260px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={burndownData.length ? burndownData : [{ date: today, remainingHours: kpi.plannedHours, remainingPoints: kpi.totalPoints }]}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-                    <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-                    <YAxis tick={{ fontSize: 10 }} />
-                    <Tooltip />
-                    <Legend />
-                    <Area type="monotone" dataKey="remainingHours" stroke="#2b6cb0" fill="#dbeafe" name="Remaining Hours" />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </Card>
-            <Card>
-              <CardTitle title="Task Status" subtitle="Distribution by status" />
-              <div className="h-[260px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie data={statusCounts.length ? statusCounts : [{ name: 'No tasks', value: 1 }]} dataKey="value" nameKey="name" outerRadius={80} label />
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            </Card>
-            <Card>
-              <CardTitle title="Employee Workload" subtitle="Estimated hours vs capacity" />
-              <div className="h-[260px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={workloadData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-                    <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                    <YAxis tick={{ fontSize: 10 }} />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="hours" fill="#2b6cb0" name="Planned hours" />
-                    <Bar dataKey="capacity" fill="#dcfce7" name="Capacity" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </Card>
-            <Card>
-              <CardTitle title="Scope Changes" subtitle={`${changeTable.length} changes`} />
-              {changeTable.length === 0 ? (
-                <p className="text-[12px] text-muted">No scope changes recorded.</p>
-              ) : (
-                <ul className="space-y-2">
-                  {changeTable.slice(0, 6).map((c) => (
-                    <li key={c.id} className="flex items-center justify-between rounded-lg border border-line bg-[#fafaf8] p-2 text-[12px]">
-                      <span>{c.type}</span>
-                      <span className="text-[10px] text-muted">{c.backlogItemId ? c.backlogItemId.slice(0, 6) : ''}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </Card>
-          </div>
         </div>
       )}
 
@@ -328,29 +280,6 @@ export function Sprints() {
         <SprintBacklog sprint={activeSprint} onRemove={(id) => sprints.removeFromSprint(id)} />
       )}
 
-      {tab === 'board' && activeSprint && <SprintBoard sprint={activeSprint} onStatus={sprints.updateItemStatus} onLog={sprints.logTime} />}
-
-      {tab === 'calendar' && activeSprint && (
-        <Card>
-          <CardTitle title="Sprint Calendar" subtitle={`${activeSprint.start} → ${activeSprint.end} · ${activeSprint.workingDays} working days`} />
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: activeSprint.workingDays }).map((_, i) => {
-              const d = new Date(activeSprint.start)
-              d.setDate(d.getDate() + i)
-              const date = d.toISOString().slice(0, 10)
-              const done = activeItems.filter((it) => it.completedAt === date).length
-              return (
-                <div key={i} className="rounded-lg border border-line p-3">
-                  <p className="text-[12px] font-semibold text-ink">Day {i + 1}</p>
-                  <p className="text-[10px] text-muted">{date}</p>
-                  {done > 0 && <p className="mt-1 text-[10px] text-green">{done} completed</p>}
-                </div>
-              )
-            })}
-          </div>
-        </Card>
-      )}
-
       {tab === 'capacity' && activeSprint && <CapacityTable sprint={activeSprint} team={app.team} items={activeItems} />}
 
       {tab === 'analytics' && activeSprint && (
@@ -365,7 +294,7 @@ export function Sprints() {
             <CardTitle title="Daily Progress Trend" />
             <div className="h-[260px]">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={burndownData.length ? burndownData : [{ date: today, completedTasks: 0 }]}>
+                <LineChart data={burndownData.length ? burndownData : [{ date: todayKey(), completedTasks: 0 }]}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
                   <XAxis dataKey="date" tick={{ fontSize: 10 }} />
                   <YAxis tick={{ fontSize: 10 }} />
@@ -425,7 +354,7 @@ export function Sprints() {
                 {changeTable.map((c) => (
                   <tr key={c.id} className="border-t border-line">
                     <td className="py-1.5"><Badge tone={c.type === 'Added' ? 'green' : c.type === 'Removed' ? 'red' : 'amber'}>{c.type}</Badge></td>
-                    <td className="text-ink">{c.backlogItemId ? c.backlogItemId.slice(0, 6) : '—'}</td>
+                    <td className="text-ink">{c.backlogItemId ? sprints.backlog.find((b) => b.id === c.backlogItemId)?.title ?? c.backlogItemId.slice(0, 6) : '—'}</td>
                     <td className="text-muted">{c.changedBy}</td>
                     <td className="text-muted">{c.changedAt}</td>
                   </tr>
@@ -436,52 +365,7 @@ export function Sprints() {
           </div>
         </Card>
       )}
-
-      {tab === 'retrospective' && activeSprint && (
-        <RetrospectiveSection
-          retro={sprints.retrospectives.find((r) => r.sprintId === activeSprint.id)}
-          onSave={(r) => sprints.saveRetrospective(r)}
-        />
-      )}
-
-      {tab === 'performance' && activeSprint && (
-        <PerformanceTable performance={performance} onCompare={(name) => {}} />
-      )}
-
-      {tab === 'history' && (
-        <Card>
-          <CardTitle title="Sprint History" />
-          <div className="overflow-x-auto">
-          <table className="mt-2 w-full min-w-[520px] text-[11px]">
-            <thead>
-              <tr className="text-left text-muted">
-                <th className="py-2">Sprint</th>
-                <th>Project</th>
-                <th>Status</th>
-                <th>Tasks</th>
-                <th>Points</th>
-                <th>Velocity</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sprints.sprints.map((s) => {
-                const k = getSprintKPIs(s, sprints)
-                return (
-                  <tr key={s.id} className="border-t border-line">
-                    <td className="py-2 font-medium text-ink">{s.name}</td>
-                    <td className="text-muted">{app.projects.find((p) => p.id === s.projectId)?.name ?? '—'}</td>
-                    <td><StatusBadge status={s.status} /></td>
-                    <td>{k.completedTasks}/{k.plannedTasks}</td>
-                    <td>{k.completedPoints}</td>
-                    <td>{k.velocity}</td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-          </div>
-        </Card>
-      )}
+      </div>
 
       <SprintModal open={sprintFormOpen} onClose={() => setSprintFormOpen(false)} onSubmit={sprints.addSprint} projects={app.projects} team={app.team} />
     </div>
@@ -518,14 +402,18 @@ function ProductBacklogList({ open, setOpen, onMoveToSprint }: { open: boolean; 
   const sprints = useSprints()
   const app = useApp()
   const items = useMemo(() => getBacklogItems(sprints), [sprints])
-  const [form, setForm] = useState({ title: '', type: 'Task' as const, priority: 'Medium' as const, estimatedHours: 0, storyPoints: 0, projectId: app.projects[0]?.id ?? '' })
+  const [query, setQuery] = useState('')
+  const visible = useMemo(
+    () => items.filter((i) => i.title.toLowerCase().includes(query.trim().toLowerCase())),
+    [items, query],
+  )
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex h-[36px] w-full max-w-[245px] items-center gap-2 rounded-lg border border-line bg-white px-3 text-muted">
           <Search size={14} />
-          <input placeholder="Search backlog..." className="w-full bg-transparent text-[11px] text-ink outline-none" />
+          <input placeholder="Search backlog..." value={query} onChange={(e) => setQuery(e.target.value)} className="w-full bg-transparent text-[11px] text-ink outline-none" />
         </div>
         <Button onClick={() => setOpen(true)}><Plus size={14} className="mr-1" /> Add Backlog Item</Button>
       </div>
@@ -533,6 +421,8 @@ function ProductBacklogList({ open, setOpen, onMoveToSprint }: { open: boolean; 
         <CardTitle title="Product Backlog" subtitle={`${items.length} items`} />
         {items.length === 0 ? (
           <EmptyState title="No product backlog items" description="Add items or move them from the sprint backlog." action={<Button onClick={() => setOpen(true)}>Add Item</Button>} />
+        ) : visible.length === 0 ? (
+          <EmptyState title="No backlog items match" description="Try a different search term." />
         ) : (
           <div className="overflow-x-auto">
           <table className="w-full min-w-[600px] text-[11px]">
@@ -548,7 +438,7 @@ function ProductBacklogList({ open, setOpen, onMoveToSprint }: { open: boolean; 
               </tr>
             </thead>
             <tbody>
-              {items.map((item) => (
+              {visible.map((item) => (
                 <tr key={item.id} className="border-t border-line">
                   <td className="py-2 font-medium text-ink">{item.title}</td>
                   <td><Badge tone="neutral">{item.type}</Badge></td>
@@ -582,7 +472,8 @@ function SprintBacklog({ sprint, onRemove }: { sprint: Sprint; onRemove: (id: st
     items.forEach((i) => { if (i.assignee) map[i.assignee] = (map[i.assignee] ?? 0) + i.estimatedHours })
     return map
   }, [items])
-  const overallocated = sprint.members.filter((m) => (memberHours[m] ?? 0) > capacity / sprint.members.length)
+  const perMemberCapacity = sprint.members.length ? capacity / sprint.members.length : 0
+  const overallocated = sprint.members.filter((m) => perMemberCapacity > 0 && (memberHours[m] ?? 0) > perMemberCapacity)
   const missingEstimate = items.filter((i) => !i.estimatedHours)
   const missingAssignee = items.filter((i) => !i.assignee)
   const unresolvedDeps = items.filter((i) => i.dependencies.some((dep) => !sprints.backlog.find((b) => b.id === dep && b.status === 'Done')))
@@ -643,52 +534,6 @@ function SprintBacklog({ sprint, onRemove }: { sprint: Sprint; onRemove: (id: st
   )
 }
 
-const boardColumns: BacklogItem['status'][] = ['To Do', 'In Progress', 'In Review', 'QA', 'Blocked', 'Done']
-
-function SprintBoard({ sprint, onStatus, onLog }: { sprint: Sprint; onStatus: (id: string, status: BacklogItem['status']) => void; onLog: (log: any) => void }) {
-  const sprints = useSprints()
-  const items = useMemo(() => getSprintItems(sprint.id, sprints), [sprint, sprints])
-  const [logModal, setLogModal] = useState<{ open: boolean; itemId: string }>({ open: false, itemId: '' })
-
-  return (
-    <div className="flex gap-4 overflow-x-auto pb-2">
-      {boardColumns.map((col) => (
-        <div key={col} className="min-w-[220px] flex-1">
-          <div className="mb-2 flex items-center justify-between">
-            <p className="text-[11px] font-semibold text-ink">{col}</p>
-            <span className="rounded-full bg-[#f0f1ed] px-1.5 py-[1px] text-[9px] font-bold text-muted">{items.filter((i) => i.status === col).length}</span>
-          </div>
-          <div className="space-y-2">
-            {items.filter((i) => i.status === col).map((item) => (
-              <Card key={item.id} className="p-3">
-                <p className="text-[12px] font-medium text-ink">{item.title}</p>
-                <p className="text-[10px] text-muted">{item.assignee ?? 'Unassigned'}</p>
-                <div className="mt-2 flex flex-wrap gap-1">
-                  <Badge tone="neutral" className="text-[9px]">{item.storyPoints} pts</Badge>
-                  <Badge tone="neutral" className="text-[9px]">{item.estimatedHours}h</Badge>
-                </div>
-                <div className="mt-2 flex flex-wrap gap-1 border-t border-line pt-2">
-                  {boardColumns.filter((c) => c !== col).map((c) => (
-                    <button
-                      key={c}
-                      onClick={() => onStatus(item.id, c)}
-                      className="rounded bg-[#f0f1ed] px-2 py-1 text-[9px] text-ink hover:bg-ink hover:text-white"
-                    >
-                      → {c}
-                    </button>
-                  ))}
-                </div>
-                <TextButton className="mt-1" onClick={() => setLogModal({ open: true, itemId: item.id })}>Log time</TextButton>
-              </Card>
-            ))}
-          </div>
-        </div>
-      ))}
-      <TimeLogModal open={logModal.open} onClose={() => setLogModal({ open: false, itemId: '' })} itemId={logModal.itemId} onLog={onLog} />
-    </div>
-  )
-}
-
 function CapacityTable({ sprint, team, items }: { sprint: Sprint; team: TeamMember[]; items: BacklogItem[] }) {
   const workingHours = sprint.workingDays * sprint.hoursPerDay
   return (
@@ -709,7 +554,7 @@ function CapacityTable({ sprint, team, items }: { sprint: Sprint; team: TeamMemb
           {sprint.members.map((m) => {
             const member = team.find((t) => t.name === m)
             const planned = items.filter((i) => i.assignee === m).reduce((s, i) => s + i.estimatedHours, 0)
-            const util = Math.round((planned / workingHours) * 100)
+            const util = workingHours > 0 ? Math.round((planned / workingHours) * 100) : 0
             const tone = util > 100 ? 'red' : util > 90 ? 'amber' : util < 70 ? 'blue' : 'green'
             const label = util > 100 ? 'Overloaded' : util > 90 ? 'High' : util >= 70 ? 'Healthy' : 'Under-utilised'
             return (
@@ -787,115 +632,19 @@ function BlockersSection({ sprint, open, setOpen, onResolve, onAdd }: { sprint: 
   )
 }
 
-function RetrospectiveSection({ retro, onSave }: { retro?: Retrospective; onSave: (r: Retrospective) => void }) {
-  const [wentWell, setWentWell] = useState(retro?.wentWell.join('\n') ?? '')
-  const [didNot, setDidNot] = useState(retro?.didNotGoWell.join('\n') ?? '')
-  const [actions, setActions] = useState(retro?.actions ?? [])
-  const [actionText, setActionText] = useState('')
-  const [owner, setOwner] = useState('')
-  const [due, setDue] = useState('')
 
-  const save = () => {
-    onSave({
-      sprintId: retro?.sprintId ?? 's1',
-      wentWell: wentWell.split('\n').filter(Boolean),
-      didNotGoWell: didNot.split('\n').filter(Boolean),
-      blockers: retro?.blockers ?? [],
-      processIssues: retro?.processIssues ?? [],
-      clientIssues: retro?.clientIssues ?? [],
-      technicalIssues: retro?.technicalIssues ?? [],
-      actions,
-    })
-  }
-
-  return (
-    <Card>
-      <CardTitle title="Sprint Retrospective" action={<Button onClick={save}>Save</Button>} />
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <Field label="What went well"><textarea className={inputClass} rows={4} value={wentWell} onChange={(e) => setWentWell(e.target.value)} /></Field>
-        <Field label="What didn't go well"><textarea className={inputClass} rows={4} value={didNot} onChange={(e) => setDidNot(e.target.value)} /></Field>
-      </div>
-      <div className="mt-5">
-        <p className="mb-2 text-[12px] font-semibold text-ink">Improvement Actions</p>
-        <div className="mb-3 grid grid-cols-1 gap-3 md:grid-cols-4">
-          <input className={inputClass} placeholder="Action" value={actionText} onChange={(e) => setActionText(e.target.value)} />
-          <input className={inputClass} placeholder="Owner" value={owner} onChange={(e) => setOwner(e.target.value)} />
-          <input className={inputClass} type="date" value={due} onChange={(e) => setDue(e.target.value)} />
-          <Button onClick={() => { if (actionText && owner && due) { setActions([...actions, { id: Math.random().toString(36).slice(2, 9), action: actionText, owner, due, priority: 'Medium', status: 'Open' }]); setActionText(''); setOwner(''); setDue('') } }}>Add Action</Button>
-        </div>
-        {actions.length === 0 ? <p className="text-[12px] text-muted">No actions yet.</p> : (
-          <div className="overflow-x-auto">
-          <table className="w-full min-w-[400px] text-[11px]">
-            <thead>
-              <tr className="text-left text-muted"><th className="py-2">Action</th><th>Owner</th><th>Due</th><th>Status</th></tr>
-            </thead>
-            <tbody>
-              {actions.map((a) => (
-                <tr key={a.id} className="border-t border-line"><td className="py-2 font-medium text-ink">{a.action}</td><td>{a.owner}</td><td>{a.due}</td><td><Badge tone={a.status === 'Completed' ? 'green' : 'amber'}>{a.status}</Badge></td></tr>
-              ))}
-            </tbody>
-          </table>
-          </div>
-        )}
-      </div>
-    </Card>
-  )
-}
-
-function PerformanceTable({ performance, onCompare }: { performance: any[]; onCompare: (name: string) => void }) {
-  return (
-    <Card>
-      <CardTitle title="Employee Sprint Performance" subtitle="Calculated across delivery, quality, estimation, productivity, reliability and collaboration" />
-      <div className="overflow-x-auto">
-      <table className="w-full min-w-[720px] text-[11px]">
-        <thead>
-          <tr className="text-left text-muted">
-            <th className="py-2">Employee</th>
-            <th>Role</th>
-            <th>Assigned</th>
-            <th>Completed</th>
-            <th>Points</th>
-            <th>Completion</th>
-            <th>Hours</th>
-            <th>Blocked</th>
-            <th>Score</th>
-            <th>Rating</th>
-          </tr>
-        </thead>
-        <tbody>
-          {performance.map((p) => (
-            <tr key={p.name} className="border-t border-line">
-              <td className="py-2 font-medium text-ink">{p.name}</td>
-              <td className="text-muted">{p.role}</td>
-              <td>{p.assignedTasks}</td>
-              <td>{p.completedTasks}</td>
-              <td>{p.completedPoints}/{p.assignedPoints}</td>
-              <td>{p.completionRate}%</td>
-              <td>{p.actualHours}/{p.plannedHours}</td>
-              <td>{p.blockedHours}</td>
-              <td className="font-semibold text-ink">{p.score}</td>
-              <td><Badge tone={p.score >= 80 ? 'green' : p.score >= 60 ? 'amber' : 'red'}>{p.rating}</Badge></td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      </div>
-      <div className="mt-4 rounded-lg bg-[#fafaf8] p-4">
-        <p className="text-[12px] font-semibold text-ink">Score Explainability</p>
-        {performance.map((p) => (
-          <div key={p.name} className="mt-2 text-[11px] text-muted">
-            <span className="font-semibold text-ink">{p.name}</span>: {' '}
-            {Object.entries(p.scoreBreakdown).map(([k, v]) => `${k}: ${v}`).join(' · ')} (Total {p.score})
-          </div>
-        ))}
-      </div>
-    </Card>
-  )
-}
 
 function SprintModal({ open, onClose, onSubmit, projects, team }: { open: boolean; onClose: () => void; onSubmit: (s: any) => void; projects: any[]; team: TeamMember[] }) {
   const [form, setForm] = useState({ name: '', goal: '', projectId: projects[0]?.id ?? '', start: '', end: '', workingDays: 10, hoursPerDay: 8, owner: team[0]?.name ?? '', members: [] as string[] })
   const [errors, setErrors] = useState<Record<string, string>>({})
+  // Reset whenever the modal opens so a previous submission or stale first-project
+  // selection never leaks into the next form.
+  useEffect(() => {
+    if (open) {
+      setForm({ name: '', goal: '', projectId: projects[0]?.id ?? '', start: '', end: '', workingDays: 10, hoursPerDay: 8, owner: team[0]?.name ?? '', members: [] })
+      setErrors({})
+    }
+  }, [open, projects, team])
   const submit = () => {
     const next: Record<string, string> = {}
     if (!form.name.trim()) next.name = 'Sprint name is required.'
@@ -913,7 +662,7 @@ function SprintModal({ open, onClose, onSubmit, projects, team }: { open: boolea
   return (
     <Modal open={open} title="Create Sprint" onClose={onClose} footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button onClick={submit}>Create</Button></>}>
       <FormErrorSummary errors={errors} />
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div className="form-stagger grid grid-cols-1 gap-4 md:grid-cols-2">
         <Field label="Sprint Name" required error={errors.name}><input className={errors.name ? invalidInputClass : inputClass} aria-invalid={!!errors.name} value={form.name} onChange={(e) => { setForm({ ...form, name: e.target.value }); setErrors({ ...errors, name: '' }) }} /></Field>
         <Field label="Sprint Goal"><input className={inputClass} value={form.goal} onChange={(e) => setForm({ ...form, goal: e.target.value })} /></Field>
         <Field label="Project" required error={errors.projectId}>
@@ -930,8 +679,8 @@ function SprintModal({ open, onClose, onSubmit, projects, team }: { open: boolea
         </Field>
         <Field label="Start Date" required error={errors.start}><input className={errors.start ? invalidInputClass : inputClass} aria-invalid={!!errors.start} type="date" value={form.start} onChange={(e) => { setForm({ ...form, start: e.target.value }); setErrors({ ...errors, start: '' }) }} /></Field>
         <Field label="End Date" required error={errors.end}><input className={errors.end ? invalidInputClass : inputClass} aria-invalid={!!errors.end} type="date" value={form.end} onChange={(e) => { setForm({ ...form, end: e.target.value }); setErrors({ ...errors, end: '' }) }} /></Field>
-        <Field label="Working Days"><input className={inputClass} type="number" value={form.workingDays} onChange={(e) => setForm({ ...form, workingDays: Number(e.target.value) })} /></Field>
-        <Field label="Hours/Day"><input className={inputClass} type="number" value={form.hoursPerDay} onChange={(e) => setForm({ ...form, hoursPerDay: Number(e.target.value) })} /></Field>
+        <Field label="Working Days"><input className={inputClass} type="number" min={1} value={form.workingDays} onChange={(e) => setForm({ ...form, workingDays: Math.max(0, Number(e.target.value) || 0) })} /></Field>
+        <Field label="Hours/Day"><input className={inputClass} type="number" min={0} value={form.hoursPerDay} onChange={(e) => setForm({ ...form, hoursPerDay: Math.max(0, Number(e.target.value) || 0) })} /></Field>
         <Field label="Team Members" className="md:col-span-2">
           <select multiple className={`${inputClass} h-24`} value={form.members} onChange={(e) => setForm({ ...form, members: Array.from(e.target.selectedOptions).map((o) => o.value) })}>
             {team.map((t) => <option key={t.name} value={t.name}>{t.name}</option>)}
@@ -945,6 +694,12 @@ function SprintModal({ open, onClose, onSubmit, projects, team }: { open: boolea
 function BacklogModal({ open, onClose, projects, onSubmit }: { open: boolean; onClose: () => void; projects: any[]; onSubmit: (i: any) => void }) {
   const [form, setForm] = useState({ title: '', description: '', projectId: projects[0]?.id ?? '', type: 'Task' as any, priority: 'Medium' as any, storyPoints: 0, estimatedHours: 0 })
   const [errors, setErrors] = useState<Record<string, string>>({})
+  useEffect(() => {
+    if (open) {
+      setForm({ title: '', description: '', projectId: projects[0]?.id ?? '', type: 'Task' as any, priority: 'Medium' as any, storyPoints: 0, estimatedHours: 0 })
+      setErrors({})
+    }
+  }, [open, projects])
   const submit = () => {
     const next: Record<string, string> = {}
     if (!form.title.trim()) next.title = 'Backlog item title is required.'
@@ -958,7 +713,7 @@ function BacklogModal({ open, onClose, projects, onSubmit }: { open: boolean; on
   return (
     <Modal open={open} title="Add Backlog Item" onClose={onClose} footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button onClick={submit}>Add</Button></>}>
       <FormErrorSummary errors={errors} />
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div className="form-stagger grid grid-cols-1 gap-4 md:grid-cols-2">
         <Field label="Title" required error={errors.title}><input className={errors.title ? invalidInputClass : inputClass} aria-invalid={!!errors.title} value={form.title} onChange={(e) => { setForm({ ...form, title: e.target.value }); setErrors({ ...errors, title: '' }) }} /></Field>
         <Field label="Project" required error={errors.projectId}>
           <select className={errors.projectId ? invalidInputClass : inputClass} aria-invalid={!!errors.projectId} value={form.projectId} onChange={(e) => { setForm({ ...form, projectId: e.target.value }); setErrors({ ...errors, projectId: '' }) }}>
@@ -976,8 +731,8 @@ function BacklogModal({ open, onClose, projects, onSubmit }: { open: boolean; on
             {['Critical', 'High', 'Medium', 'Low'].map((p) => <option key={p}>{p}</option>)}
           </select>
         </Field>
-        <Field label="Story Points"><input className={inputClass} type="number" value={form.storyPoints} onChange={(e) => setForm({ ...form, storyPoints: Number(e.target.value) })} /></Field>
-        <Field label="Estimated Hours"><input className={inputClass} type="number" value={form.estimatedHours} onChange={(e) => setForm({ ...form, estimatedHours: Number(e.target.value) })} /></Field>
+        <Field label="Story Points"><input className={inputClass} type="number" min={0} value={form.storyPoints} onChange={(e) => setForm({ ...form, storyPoints: Math.max(0, Number(e.target.value) || 0) })} /></Field>
+        <Field label="Estimated Hours"><input className={inputClass} type="number" min={0} value={form.estimatedHours} onChange={(e) => setForm({ ...form, estimatedHours: Math.max(0, Number(e.target.value) || 0) })} /></Field>
       </div>
     </Modal>
   )
@@ -985,6 +740,14 @@ function BacklogModal({ open, onClose, projects, onSubmit }: { open: boolean; on
 
 function BlockerModal({ open, onClose, sprint, items, onAdd }: { open: boolean; onClose: () => void; sprint: Sprint; items: BacklogItem[]; onAdd: (b: any) => void }) {
   const [form, setForm] = useState({ backlogItemId: items[0]?.id ?? '', description: '', type: 'Technical' as any, owner: sprint.owner, blockedHours: 0, employee: '', status: 'Open' as const, sprintId: sprint.id })
+  // Re-sync when the modal opens or the selected sprint changes — otherwise a
+  // persisted mount files the blocker against a stale sprint/task.
+  useEffect(() => {
+    if (open) {
+      setForm({ backlogItemId: items[0]?.id ?? '', description: '', type: 'Technical' as any, owner: sprint.owner, blockedHours: 0, employee: '', status: 'Open' as const, sprintId: sprint.id })
+      setErrors({})
+    }
+  }, [open, sprint.id]) // eslint-disable-line react-hooks/exhaustive-deps
   const [errors, setErrors] = useState<Record<string, string>>({})
   const submit = () => {
     const next: Record<string, string> = {}
@@ -999,7 +762,7 @@ function BlockerModal({ open, onClose, sprint, items, onAdd }: { open: boolean; 
   return (
     <Modal open={open} title="Raise Blocker" onClose={onClose} footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button onClick={submit}>Raise</Button></>}>
       <FormErrorSummary errors={errors} />
-      <div className="grid grid-cols-1 gap-4">
+      <div className="form-stagger grid grid-cols-1 gap-4">
         <Field label="Related Task" required error={errors.backlogItemId}>
           <select className={errors.backlogItemId ? invalidInputClass : inputClass} aria-invalid={!!errors.backlogItemId} value={form.backlogItemId} onChange={(e) => { setForm({ ...form, backlogItemId: e.target.value }); setErrors({ ...errors, backlogItemId: '' }) }}>
             <option value="">Select a task</option>
@@ -1014,35 +777,10 @@ function BlockerModal({ open, onClose, sprint, items, onAdd }: { open: boolean; 
         </Field>
         <Field label="Employee"><input className={inputClass} value={form.employee} onChange={(e) => setForm({ ...form, employee: e.target.value })} /></Field>
         <Field label="Owner"><input className={inputClass} value={form.owner} onChange={(e) => setForm({ ...form, owner: e.target.value })} /></Field>
-        <Field label="Blocked Hours"><input className={inputClass} type="number" value={form.blockedHours} onChange={(e) => setForm({ ...form, blockedHours: Number(e.target.value) })} /></Field>
+        <Field label="Blocked Hours"><input className={inputClass} type="number" min={0} value={form.blockedHours} onChange={(e) => setForm({ ...form, blockedHours: Math.max(0, Number(e.target.value) || 0) })} /></Field>
       </div>
     </Modal>
   )
 }
 
-function TimeLogModal({ open, onClose, itemId, onLog }: { open: boolean; onClose: () => void; itemId: string; onLog: (l: any) => void }) {
-  const [form, setForm] = useState({ employee: '', date: new Date().toISOString().slice(0, 10), hours: 1, note: '' })
-  const [errors, setErrors] = useState<Record<string, string>>({})
-  const submit = () => {
-    const next: Record<string, string> = {}
-    if (!form.employee.trim()) next.employee = 'Employee is required.'
-    if (!form.date) next.date = 'Date is required.'
-    if (!Number.isFinite(form.hours) || form.hours <= 0) next.hours = 'Hours must be greater than zero.'
-    setErrors(next)
-    if (Object.keys(next).length) return
-    onLog({ ...form, backlogItemId: itemId })
-    onClose()
-  }
-  if (!open) return null
-  return (
-    <Modal open={open} title="Log Time" onClose={onClose} footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button onClick={submit}>Log</Button></>}>
-      <FormErrorSummary errors={errors} />
-      <div className="grid grid-cols-1 gap-4">
-        <Field label="Employee" required error={errors.employee}><input className={errors.employee ? invalidInputClass : inputClass} aria-invalid={!!errors.employee} value={form.employee} onChange={(e) => { setForm({ ...form, employee: e.target.value }); setErrors({ ...errors, employee: '' }) }} /></Field>
-        <Field label="Date" required error={errors.date}><input className={errors.date ? invalidInputClass : inputClass} aria-invalid={!!errors.date} type="date" value={form.date} onChange={(e) => { setForm({ ...form, date: e.target.value }); setErrors({ ...errors, date: '' }) }} /></Field>
-        <Field label="Hours" required error={errors.hours}><input className={errors.hours ? invalidInputClass : inputClass} aria-invalid={!!errors.hours} type="number" min="0.5" step="0.5" value={form.hours} onChange={(e) => { setForm({ ...form, hours: Number(e.target.value) }); setErrors({ ...errors, hours: '' }) }} /></Field>
-        <Field label="Note"><input className={inputClass} value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} /></Field>
-      </div>
-    </Modal>
-  )
-}
+

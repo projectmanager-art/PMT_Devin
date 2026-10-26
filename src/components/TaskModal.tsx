@@ -120,8 +120,8 @@ export function TaskModal({
       }
     >
       <FormErrorSummary errors={errors} />
-      <div className="grid max-h-[70vh] grid-cols-1 gap-4 overflow-y-auto pr-1 sm:grid-cols-2">
-        <Field label="Task title" required error={errors.title} className="col-span-2">
+      <div className="form-stagger grid max-h-[70vh] grid-cols-1 gap-4 overflow-y-auto pr-1 sm:grid-cols-2">
+        <Field label="Task title" required error={errors.title} className="sm:col-span-2">
           <input
             className={errors.title ? invalidInputClass : inputClass}
             aria-invalid={!!errors.title}
@@ -130,13 +130,13 @@ export function TaskModal({
             placeholder="What needs to get done?"
           />
         </Field>
-        <Field label="Project" required error={errors.projectId} className="col-span-2 sm:col-span-1">
+        <Field label="Project" required error={errors.projectId}>
           <select className={errors.projectId ? invalidInputClass : inputClass} aria-invalid={!!errors.projectId} value={form.projectId} onChange={(e) => setField('projectId', e.target.value)}>
             <option value="">Select a project</option>
             {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
         </Field>
-        <Field label="Assignee" className="col-span-2 sm:col-span-1">
+        <Field label="Assignee">
           <select className={inputClass} value={form.assignee} onChange={(e) => setForm({ ...form, assignee: e.target.value })}>
             {team.map((m) => <option key={m.id}>{m.name}</option>)}
           </select>
@@ -166,7 +166,7 @@ export function TaskModal({
         <Field label="Actual hours">
           <input type="number" min={0} className={inputClass} value={form.actualHours} onChange={(e) => setForm({ ...form, actualHours: Number(e.target.value) })} />
         </Field>
-        <Field label="Description" className="col-span-2">
+        <Field label="Description" className="sm:col-span-2">
           <textarea
             rows={3}
             className={inputClass}
@@ -175,7 +175,7 @@ export function TaskModal({
             placeholder="Describe the task, goals, and context..."
           />
         </Field>
-        <Field label="Acceptance criteria" className="col-span-2">
+        <Field label="Acceptance criteria" className="sm:col-span-2">
           <textarea
             rows={2}
             className={inputClass}
@@ -185,7 +185,7 @@ export function TaskModal({
           />
         </Field>
         {!editing && (
-          <Field label="Initial comment / progress note" className="col-span-2">
+          <Field label="Initial comment / progress note" className="section-enter sm:col-span-2">
             <textarea
               rows={2}
               className={inputClass}
@@ -195,7 +195,7 @@ export function TaskModal({
             />
           </Field>
         )}
-        <Field label="Dependencies" className="col-span-2">
+        <Field label="Dependencies" className="sm:col-span-2">
           <select
             multiple
             className={`${inputClass} min-h-[80px]`}

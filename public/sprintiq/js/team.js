@@ -123,12 +123,25 @@ class TeamDirectory {
 
   /**
    * Resolves any owner name (including names coming from uploaded sprint
-   * files) to an employee record. Unknown names are treated as ordinary
-   * delivery resources so imported sprints keep working.
+   * files) to an employee record. Uploaded files often carry descriptive
+   * strings like "Nikhil Web Developer" or "Abhijeet Singh Software Tester",
+   * so an exact miss falls back to matching a roster name as a whole word
+   * (first token wins, then any roster name contained in the string).
+   * Unknown names are treated as ordinary delivery resources so imported
+   * sprints keep working.
    */
   resolve(name) {
     const found = this.index.get(this.key(name));
     if (found) return found;
+
+    const tokens = this.key(name).split(/[^a-z0-9]+/).filter(Boolean);
+    if (tokens.length) {
+      const firstTokenMatch = this.index.get(tokens[0]);
+      if (firstTokenMatch) return firstTokenMatch;
+      const wordMatch = this.roster.find(r => tokens.includes(this.key(r.employee_name)));
+      if (wordMatch) return wordMatch;
+    }
+
     return this.expand({
       employee_name: name || 'Unassigned',
       designation: 'Unlisted Resource',

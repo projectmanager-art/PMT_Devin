@@ -40,7 +40,7 @@ function TeamModal({ open, onClose, editing }: { open: boolean; onClose: () => v
       }
     >
       <FormErrorSummary errors={errors} />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="form-stagger grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Name" required error={errors.name}><input className={errors.name ? invalidInputClass : inputClass} aria-invalid={!!errors.name} value={form.name} onChange={(e) => { setForm({ ...form, name: e.target.value }); setErrors((current) => ({ ...current, name: '' })) }} /></Field>
         <Field label="Role"><input className={inputClass} value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} placeholder="Designer, Engineer..." /></Field>
         <Field label="Gender" className="md:col-span-2">
@@ -96,7 +96,7 @@ export function Team() {
         ) : (
           <div className="space-y-1">
             {team.map((member) => {
-              const utilization = Math.round((member.utilized / member.capacity) * 100)
+              const utilization = member.capacity > 0 ? Math.round((member.utilized / member.capacity) * 100) : 0
               const openTasks = tasks.filter((t) => t.assignee === member.name && t.status !== 'Completed').length
               return (
                 <div key={member.id} className="flex items-center gap-3 border-b border-[#f0f0ed] py-3 last:border-0 sm:gap-4">
@@ -141,7 +141,7 @@ export function Team() {
         )}
       </Card>
 
-      <TeamModal open={modalOpen} editing={editing} onClose={() => setModalOpen(false)} />
+      {modalOpen && <TeamModal open editing={editing} onClose={() => { setModalOpen(false); setEditing(null) }} />}
     </div>
   )
 }

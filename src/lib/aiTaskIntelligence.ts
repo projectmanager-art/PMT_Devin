@@ -62,7 +62,7 @@ function inferProbability(text: string): Probability {
 }
 
 function inferImpact(text: string): Impact {
-  if (containsAny(text, ['critical', 'severe', 'catastrophic', 'major', 'huge', 'significant delay'])) return 5
+  if (containsAny(text, ['critical', 'severe', 'catastrophic', 'huge', 'significant delay'])) return 5
   if (containsAny(text, ['major', 'important', 'substantial', 'affects milestone'])) return 4
   if (containsAny(text, ['moderate', 'some', 'slight delay'])) return 3
   if (containsAny(text, ['minor', 'small', 'low'])) return 2

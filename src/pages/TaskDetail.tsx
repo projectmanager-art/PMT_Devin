@@ -254,6 +254,7 @@ export function TaskDetail() {
         ))}
       </div>
 
+      <div key={activeTab} className="page-enter">
       {activeTab === 'overview' && (
         <div className="grid gap-4 lg:grid-cols-3">
           <Card className="lg:col-span-2">
@@ -442,8 +443,9 @@ export function TaskDetail() {
           )}
         </Card>
       )}
+      </div>
 
-      <TaskModal open={editOpen} editing={task} onClose={() => setEditOpen(false)} />
+      {editOpen && <TaskModal open editing={task} onClose={() => setEditOpen(false)} />}
     </div>
   )
 }

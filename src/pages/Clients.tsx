@@ -43,7 +43,7 @@ function ClientModal({ open, onClose, editing }: { open: boolean; onClose: () =>
       }
     >
       <FormErrorSummary errors={errors} />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="form-stagger grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Client name" required error={errors.name}><input className={errors.name ? invalidInputClass : inputClass} aria-invalid={!!errors.name} value={form.name} onChange={(e) => { setForm({ ...form, name: e.target.value }); setErrors((e) => ({ ...e, name: '' })) }} /></Field>
         <Field label="Company"><input className={inputClass} value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} /></Field>
         <Field label="Main contact"><input className={inputClass} value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} /></Field>
@@ -139,7 +139,7 @@ export function Clients() {
         </div>
       )}
 
-      <ClientModal open={modalOpen} editing={editing} onClose={() => setModalOpen(false)} />
+      {modalOpen && <ClientModal open editing={editing} onClose={() => { setModalOpen(false); setEditing(null) }} />}
     </div>
   )
 }
