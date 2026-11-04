@@ -315,7 +315,11 @@ function StatusTable({ projects, updates, patch }: { projects: Project[]; update
                       {overdue && <span className="text-[9px] font-semibold uppercase tracking-wide text-red">Overdue</span>}
                     </span>
                   </td>
-                  <td className="border-b border-[#efefeb] px-3 py-3"><Badge tone={statusTone[p.status]} className="px-2 py-0.5 text-[10px]">{p.status}</Badge></td>
+                  <td className="border-b border-[#efefeb] px-3 py-3">
+                    <button onClick={() => setUpdateTarget(p)} title="Update status" className="transition hover:opacity-75">
+                      <Badge tone={statusTone[p.status]} className="px-2 py-0.5 text-[10px]">{p.status}</Badge>
+                    </button>
+                  </td>
                   <td className="border-b border-[#efefeb] px-3 py-3">
                     {progress === null ? (
                       <span className="text-[10px] italic text-muted">Not reported</span>
@@ -348,7 +352,7 @@ function StatusTable({ projects, updates, patch }: { projects: Project[]; update
                   <td className="border-b border-[#efefeb] px-3 py-3">
                     <div className="flex items-center justify-center gap-1.5">
                       <button onClick={() => navigate(`/projects/${p.id}`)} className="grid h-6 w-6 place-items-center rounded-md border border-line bg-white text-muted transition hover:bg-[#f0f1ed] hover:text-ink" title="View project"><Eye size={12} /></button>
-                      <button onClick={() => setUpdateTarget(p)} className="grid h-6 w-6 place-items-center rounded-md border border-line bg-white text-muted transition hover:bg-[#f0f1ed] hover:text-ink" title="Add status update"><FileText size={12} /></button>
+                      <button onClick={() => setUpdateTarget(p)} className="flex h-6 items-center gap-1 rounded-md border border-line bg-white px-2 text-[10px] font-semibold text-ink transition hover:bg-[#f0f1ed]" title="Add status update"><FileText size={11} />Update</button>
                     </div>
                   </td>
                 </tr>
@@ -502,16 +506,26 @@ export function Dashboard() {
 
   const workloadData = useMemo(() => {
     const palette = ['#9c4a68', '#e85d75', '#f09a6b', '#f5dd92']
-    return team.slice(0, 4).map((m, i) => ({
-      name: m.name,
-      role: m.role,
-      gender: m.gender,
-      utilized: m.utilized,
-      capacity: m.capacity,
-      value: m.capacity > 0 ? Math.round((m.utilized / m.capacity) * 100) : 0,
-      fill: palette[i % palette.length],
-    }))
-  }, [team])
+    // Live utilization — open-task estimated hours per assignee vs capacity,
+    // not the manually-entered `utilized` field which never updates itself.
+    const openHours = new Map<string, number>()
+    tasks.forEach((t) => {
+      if (t.status === 'Completed') return
+      openHours.set(t.assignee, (openHours.get(t.assignee) ?? 0) + t.estimatedHours)
+    })
+    return team.slice(0, 4).map((m, i) => {
+      const allocated = openHours.get(m.name) ?? 0
+      return {
+        name: m.name,
+        role: m.role,
+        gender: m.gender,
+        utilized: allocated,
+        capacity: m.capacity,
+        value: m.capacity > 0 ? Math.round((allocated / m.capacity) * 100) : 0,
+        fill: palette[i % palette.length],
+      }
+    })
+  }, [team, tasks])
 
   const avgUtilization = workloadData.length
     ? Math.round(workloadData.reduce((sum, w) => sum + w.value, 0) / workloadData.length)

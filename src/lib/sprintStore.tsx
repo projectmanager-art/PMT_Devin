@@ -72,6 +72,25 @@ export function SprintProvider({ children }: { children: ReactNode }) {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
   }, [data])
 
+  // Live sync — writes from another tab/window reload here via `storage`.
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === STORAGE_KEY) setData(load())
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [])
+
+  // Keep the active selection valid when sprints change underneath us
+  // (e.g. a cross-tab delete or reset).
+  useEffect(() => {
+    setActiveSprintId((cur) =>
+      cur && data.sprints.some((s) => s.id === cur)
+        ? cur
+        : data.sprints.find((s) => s.status === 'Active')?.id ?? data.sprints[0]?.id ?? null,
+    )
+  }, [data.sprints])
+
   const patch = <K extends keyof SprintData>(key: K, updater: (items: SprintData[K]) => SprintData[K]) => {
     setData((current) => ({ ...current, [key]: updater(current[key]) }))
   }

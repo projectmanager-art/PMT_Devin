@@ -236,7 +236,7 @@ export function Tasks() {
               return (
                 <section
                   key={status}
-                  className="flex w-[270px] shrink-0 flex-col rounded-xl border border-line bg-[#f3f4f1] p-2.5 transition-colors data-[drag-over=true]:border-blue data-[drag-over=true]:bg-[#edf3fb]"
+                  className="flex h-[calc(100vh-305px)] min-h-[320px] w-[270px] shrink-0 flex-col overflow-hidden rounded-xl border border-line bg-[#f3f4f1] p-2.5 transition-colors data-[drag-over=true]:border-blue data-[drag-over=true]:bg-[#edf3fb]"
                   onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; event.currentTarget.dataset.dragOver = 'true' }}
                   onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node)) delete event.currentTarget.dataset.dragOver }}
                   onDrop={(event) => {
@@ -250,7 +250,7 @@ export function Tasks() {
                     <h2 className="text-[11px] font-bold text-ink">{status}</h2>
                     <span className="rounded-full bg-white px-2 py-0.5 text-[9px] font-bold text-muted">{columnTasks.length}</span>
                   </div>
-                  <div className="flex-1 space-y-2.5">
+                  <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto overscroll-contain pr-1">
                     {columnTasks.map((task) => {
                       const project = projects.find((item) => item.id === task.projectId)
                       return (

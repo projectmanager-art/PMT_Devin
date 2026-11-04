@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { migrateLegacyRisk, normalizeRisk, type AiFinding, type RaidItem } from './lib/raid'
 import { buildCommitPayload, buildImportPlan, extractProjectRows, loadXlsx } from './lib/excelImport'
+import { ensureDemoData } from './lib/seedDemo'
 
 export type ProjectStatus = 'Planning' | 'In Progress' | 'On Hold' | 'Completed' | 'At Risk' | 'Backed Off'
 export type Health = 'Green' | 'Amber' | 'Red'
@@ -26,7 +27,15 @@ export interface StatusUpdate {
   nextSteps?: string
   expectedCompletion?: string // YYYY-MM-DD — revises project.end when provided
   internalRemarks?: string // internal-only
-  source: 'manual' | 'imported-comment'
+  source: 'manual' | 'imported-comment' | 'ai'
+  /** Audit trail for AI-applied updates — proposal, prior values, fields changed, approving user */
+  aiAudit?: {
+    input: string
+    approvedBy: string
+    changedFields: string[]
+    proposal: Record<string, string | number | null>
+    previousValues: Record<string, string | number | undefined>
+  }
   editHistory?: { editedAt: string; editedBy: string; changes: string }[]
 }
 export type Priority = 'Low' | 'Medium' | 'High' | 'Urgent'
@@ -336,16 +345,18 @@ function load(): AppData {
     const raw = stored ? (JSON.parse(stored) as any) : seed
     // Set only after a successful parse — corrupt JSON stays "empty" so restore can run
     bootWasEmpty = (raw.projects?.length ?? 0) === 0
-    return {
+    // Demo seeder — fills ONLY empty collections with linked test data so every
+    // module (Workstream/Calendar/Meetings/Documents/RAID) is exercisable.
+    return ensureDemoData({
       ...raw,
       risks: ((raw.risks || []) as any[]).map(migrateLegacyRisk),
       tasks: ((raw.tasks || []) as any[]).map(migrateTask),
       aiFindings: (raw.aiFindings || []) as AiFinding[],
       importBatches: (raw.importBatches || []) as ImportBatch[],
       statusUpdates: (raw.statusUpdates || []) as StatusUpdate[],
-    } as AppData
+    } as AppData)
   } catch {
-    return { ...seed, risks: (seed.risks || []).map(migrateLegacyRisk), tasks: (seed.tasks || []).map(migrateTask), aiFindings: [] } as AppData
+    return ensureDemoData({ ...seed, risks: (seed.risks || []).map(migrateLegacyRisk), tasks: (seed.tasks || []).map(migrateTask), aiFindings: [] } as AppData)
   }
 }
 
@@ -355,6 +366,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
   }, [data])
+
+  // Live sync — writes from another tab/window land here via the `storage`
+  // event (this tab's own writes don't fire it, so there's no loop).
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === STORAGE_KEY) setData(load())
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [])
 
   const value = useMemo<AppContextValue>(() => {
     const patch = <K extends keyof AppData>(key: K, updater: (items: AppData[K]) => AppData[K]) => {

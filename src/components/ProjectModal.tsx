@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { todayKey } from '../lib/dates'
-import { CURRENT_USER, useApp, type Project, type ProjectStatus } from '../store'
+import { useApp, type Project, type ProjectStatus } from '../store'
 import { Button, Field, FormErrorSummary, Modal, inputClass, invalidInputClass } from './ui'
 
 export function ProjectModal({
@@ -21,7 +21,6 @@ export function ProjectModal({
     client: editing?.client ?? clients[0]?.name ?? '',
     manager: editing?.manager ?? team[0]?.name ?? '',
     status: editing?.status ?? ('Planning' as ProjectStatus),
-    health: editing?.healthOverride?.health ?? editing?.health ?? ('Green' as Project['health']),
     progress: editing?.progress ?? 0,
     priority: editing?.priority ?? ('Medium' as Project['priority']),
     start: editing?.start ?? todayKey(),
@@ -66,15 +65,11 @@ export function ProjectModal({
         pendingApprovals: 'None',
       })
     }
-    const payload = { ...form, client: clientName, progress: Number(form.progress), estimatedHours: Number(form.estimatedHours), actualHours: Number(form.actualHours) }
+    // Health is always auto-computed from signals — keep a neutral stored
+    // baseline and clear any stale manual override on edit.
+    const payload = { ...form, client: clientName, health: editing?.health ?? ('Green' as const), progress: Number(form.progress), estimatedHours: Number(form.estimatedHours), actualHours: Number(form.actualHours) }
     if (editing) {
-      // A manually chosen health is stored as an audited override — auto health
-      // applies when the manager clears it or leaves the stored baseline.
-      const healthOverride =
-        form.health !== (editing.healthOverride?.health ?? editing.health)
-          ? { health: form.health, reason: 'Manual override via project edit', author: CURRENT_USER, at: new Date().toISOString() }
-          : editing.healthOverride
-      updateProject(editing.id, { ...payload, healthOverride })
+      updateProject(editing.id, { ...payload, healthOverride: undefined })
     } else addProject(payload)
     onClose()
   }
@@ -161,11 +156,6 @@ export function ProjectModal({
         <Field label="Status">
           <select className={inputClass} value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as ProjectStatus })}>
             {(['Planning', 'In Progress', 'On Hold', 'Completed', 'At Risk', 'Backed Off'] as ProjectStatus[]).map((s) => <option key={s}>{s}</option>)}
-          </select>
-        </Field>
-        <Field label="Health">
-          <select className={inputClass} value={form.health} onChange={(e) => setForm({ ...form, health: e.target.value as Project['health'] })}>
-            {(['Green', 'Amber', 'Red'] as Project['health'][]).map((h) => <option key={h}>{h}</option>)}
           </select>
         </Field>
         <Field label="Priority">

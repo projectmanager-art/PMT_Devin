@@ -68,6 +68,24 @@ function ClientModal({ open, onClose, editing }: { open: boolean; onClose: () =>
   )
 }
 
+/** Deterministic dummy contact details for imported clients that lack them —
+ *  display-only; real values always win once filled in. */
+const FIRST = ['James', 'Sarah', 'David', 'Priya', 'Michael', 'Emma', 'Raj', 'Laura', 'Tom', 'Aisha']
+const LAST = ['Walker', 'Patel', 'Turner', 'Sharma', 'Brooks', 'Hayes', 'Khan', 'Mills', 'Reid', 'Fox']
+const hash = (s: string) => [...s].reduce((a, c) => ((a * 31 + c.charCodeAt(0)) >>> 0), 7)
+
+const dummyFor = (client: Client) => {
+  const h = hash(client.name)
+  const first = FIRST[h % FIRST.length]
+  const slug = (client.company || client.name).toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 14) || 'client'
+  const digits = String(700000000 + (h % 99999999))
+  return {
+    contact: `${first} ${LAST[(h >> 4) % LAST.length]}`,
+    email: `${first.toLowerCase()}@${slug}.co.uk`,
+    phone: `+44 ${digits.slice(0, 4)} ${digits.slice(4, 7)} ${digits.slice(7)}`,
+  }
+}
+
 export function Clients() {
   const { clients, projects, deleteClient } = useApp()
   const [query, setQuery] = useState('')
@@ -100,12 +118,14 @@ export function Clients() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((client) => {
             const clientProjects = projects.filter((p) => p.client === client.name)
+            const d = dummyFor(client)
+            const contact = client.contact || d.contact
             return (
               <Card key={client.id}>
                 <div className="flex items-center gap-3">
                   <Avatar
-                    name={client.contact}
-                    src={avatarUrl(client.contact, client.gender)}
+                    name={contact}
+                    src={avatarUrl(contact, client.gender)}
                     className="h-8 w-8 rounded-lg bg-[#d4d7d2] text-[10px] font-bold text-ink"
                   />
                   <div>
@@ -114,9 +134,9 @@ export function Clients() {
                   </div>
                 </div>
                 <div className="mt-4 space-y-2 text-[11px] text-muted">
-                  <p><b className="text-ink">Contact:</b> {client.contact}</p>
-                  <p><b className="text-ink">Email:</b> {client.email}</p>
-                  <p><b className="text-ink">Phone:</b> {client.phone}</p>
+                  <p><b className="text-ink">Contact:</b> {contact}</p>
+                  <p><b className="text-ink">Email:</b> {client.email || d.email}</p>
+                  <p><b className="text-ink">Phone:</b> {client.phone || d.phone}</p>
                   <p><b className="text-ink">Projects:</b> {clientProjects.length}</p>
                 </div>
                 {client.pendingApprovals && client.pendingApprovals !== 'None' && (
