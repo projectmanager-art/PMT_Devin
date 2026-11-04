@@ -584,8 +584,8 @@ export function Dashboard() {
 
       {/* Portfolio summary — clickable metric cards */}
       {/* Reference-style top block */}
-      <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <div className="min-w-0 space-y-4 xl:col-span-2">
+      <div className="mb-4 grid grid-cols-1 gap-4 2xl:grid-cols-3">
+        <div className="min-w-0 space-y-4 2xl:col-span-2">
           {/* Portfolio header card */}
           <Card className="page-enter">
             <div className="flex flex-wrap items-center justify-between gap-4">
@@ -622,7 +622,7 @@ export function Dashboard() {
               </div>
             </div>
             <div className="mb-1 overflow-x-auto">
-              <div className="grid min-w-[480px] grid-cols-7 gap-1">
+              <div className="grid min-w-0 grid-cols-7 gap-1 sm:min-w-[440px]">
                 {digest.map((d) => (
                   <div key={d.label} className="rounded-lg border border-line px-1.5 py-1.5 text-center">
                     <p className="text-[9px] font-medium text-muted">{d.label}</p>
@@ -734,7 +734,7 @@ export function Dashboard() {
         </div>
       </div>
 
-      <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-4">
         <Card>
           <CardTitle title="Project status" subtitle="Latest reported status" />
           <div className="flex h-auto flex-col items-center gap-6 sm:h-[200px] sm:flex-row">
@@ -918,7 +918,7 @@ export function Dashboard() {
 
 
       {/* The reporting table — most important section */}
-      <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-3">
+      <div className="mb-4 grid grid-cols-1 gap-4 2xl:grid-cols-3">
         <div className="flex min-w-0 flex-col gap-4">
         <Card className="flex flex-1 flex-col">
           <CardTitle
@@ -1010,7 +1010,7 @@ export function Dashboard() {
           </ul>
         </Card>
         </div>
-        <div className="flex min-w-0 flex-col xl:col-span-2" id="status-table-section">
+        <div className="flex min-w-0 flex-col 2xl:col-span-2" id="status-table-section">
           <StatusTable projects={projects} updates={statusUpdates} patch={tablePatch} />
         </div>
       </div>

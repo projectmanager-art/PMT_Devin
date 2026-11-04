@@ -384,6 +384,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('storage', onStorage)
   }, [])
 
+  // First-run hydration — an empty workspace loads the committed seed
+  // snapshot (public/nexora-seed.json) so a fresh clone sees the full demo.
+  useEffect(() => {
+    if (!bootWasEmpty) return
+    fetch('/nexora-seed.json')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json) => {
+        if (!json) return
+        setData((current) => ((current.projects?.length ?? 0) === 0 ? (json as AppData) : current))
+      })
+      .catch(() => {})
+  }, [])
+
   const value = useMemo<AppContextValue>(() => {
     const patch = <K extends keyof AppData>(key: K, updater: (items: AppData[K]) => AppData[K]) => {
       setData((current) => ({ ...current, [key]: updater(current[key]) }))
