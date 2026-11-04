@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ElementType } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { AlertCircle, AlertTriangle, Bell, ChevronRight, LogOut, Menu, Search, Settings, UserRound, Users } from 'lucide-react'
 import { useApp } from '../store'
 import { todayKey } from '../lib/dates'
@@ -54,10 +54,46 @@ const alertIcon: Record<AlertItem['type'], ElementType> = {
   review: AlertCircle,
 }
 
+const SECTION_NAMES: Record<string, string> = {
+  projects: 'Projects',
+  tasks: 'Workstream',
+  timeline: 'Timeline',
+  calendar: 'Calendar',
+  clients: 'Clients',
+  team: 'Team',
+  reports: 'Reports',
+  risks: 'RAID Intelligence',
+  meetings: 'Meetings',
+  documents: 'Documents',
+  sprintiq: 'SprintIQ',
+  settings: 'Settings',
+}
+
 export function Topbar({ onLogout, onMenuClick }: { onLogout: () => void; onMenuClick: () => void }) {
   const { projects, tasks, clients, team, meetings } = useApp()
+  const location = useLocation()
   const [query, setQuery] = useState('')
   const [showResults, setShowResults] = useState(false)
+
+  /** Route-driven breadcrumbs — intermediate crumbs link back to their parent. */
+  const crumbs = useMemo(() => {
+    const segs = location.pathname.split('/').filter(Boolean)
+    const list: { label: string; to?: string }[] = [{ label: 'Overview', to: '/' }]
+    if (!segs[0]) {
+      list.push({ label: 'Dashboard' })
+    } else if (segs[0] === 'projects' && segs[1]) {
+      const p = projects.find((x) => x.id === segs[1])
+      list.push({ label: 'Projects', to: '/projects' }, { label: p?.name ?? 'Project' })
+      if (segs[2] === 'tasks' && segs[3]) {
+        list.push({ label: tasks.find((x) => x.id === segs[3])?.title ?? 'Task' })
+      }
+    } else if (segs[0] === 'tasks' && segs[1]) {
+      list.push({ label: 'Workstream', to: '/tasks' }, { label: tasks.find((x) => x.id === segs[1])?.title ?? 'Task' })
+    } else {
+      list.push({ label: SECTION_NAMES[segs[0]] ?? segs[0] })
+    }
+    return list
+  }, [location.pathname, projects, tasks])
   const [showAlerts, setShowAlerts] = useState(false)
   const [expandedAlert, setExpandedAlert] = useState<string | null>(null)
   const [showUserMenu, setShowUserMenu] = useState(false)
@@ -153,9 +189,23 @@ export function Topbar({ onLogout, onMenuClick }: { onLogout: () => void; onMenu
         >
           <Menu size={18} />
         </button>
-        <span className="hidden text-[#9a9c9a] sm:inline">Overview</span>
-        <span className="hidden text-[#c9cac6] sm:inline">/</span>
-        <span className="hidden font-semibold text-ink sm:inline">Dashboard</span>
+        <nav className="hidden items-center gap-1.5 sm:flex" aria-label="Breadcrumb">
+          {crumbs.map((c, i) => {
+            const last = i === crumbs.length - 1
+            return (
+              <span key={i} className="flex items-center gap-1.5">
+                {i > 0 && <span className="text-[#c9cac6]">/</span>}
+                {last ? (
+                  <span className="font-semibold text-ink">{c.label}</span>
+                ) : (
+                  <Link to={c.to ?? '/'} className="text-[#9a9c9a] transition hover:text-ink hover:underline">
+                    {c.label}
+                  </Link>
+                )}
+              </span>
+            )
+          })}
+        </nav>
       </div>
 
       <div className="flex items-center gap-2">

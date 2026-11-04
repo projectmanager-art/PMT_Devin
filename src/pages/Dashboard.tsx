@@ -506,12 +506,16 @@ export function Dashboard() {
 
   const workloadData = useMemo(() => {
     const palette = ['#9c4a68', '#e85d75', '#f09a6b', '#f5dd92']
-    // Live utilization — open-task estimated hours per assignee vs capacity,
-    // not the manually-entered `utilized` field which never updates itself.
+    // This week's utilization — remaining estimated hours on open tasks due
+    // within the next 7 days (incl. overdue) vs weekly capacity.
+    const weekEnd = new Date(today)
+    weekEnd.setDate(weekEnd.getDate() + 6)
+    const weekEndKey = weekEnd.toISOString().slice(0, 10)
     const openHours = new Map<string, number>()
     tasks.forEach((t) => {
-      if (t.status === 'Completed') return
-      openHours.set(t.assignee, (openHours.get(t.assignee) ?? 0) + t.estimatedHours)
+      if (t.status === 'Completed' || !t.due || t.due > weekEndKey) return
+      const remaining = Math.max(0, t.estimatedHours - (t.actualHours || 0))
+      openHours.set(t.assignee, (openHours.get(t.assignee) ?? 0) + remaining)
     })
     return team.slice(0, 4).map((m, i) => {
       const allocated = openHours.get(m.name) ?? 0

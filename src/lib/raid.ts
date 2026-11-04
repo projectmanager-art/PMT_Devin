@@ -82,6 +82,7 @@ export interface RaidItem {
   dependencyType?: 'Internal' | 'External' | 'Cross-team' | 'Technical'
   provider?: string
   delayImpact?: string
+  demoSeed?: boolean
 }
 
 export interface RaidScoringBands {

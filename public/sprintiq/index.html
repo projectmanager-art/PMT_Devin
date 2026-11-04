@@ -111,51 +111,20 @@
           </button>
         </div>
 
-        <div class="top-right-group">
-          <div style="position: relative;">
-            <input type="text" id="global-search-input" class="filter-input" placeholder="Search tasks, owners, projects..." style="width: 220px;">
-          </div>
-          <button class="btn btn-secondary btn-sm" id="btn-quick-export-pdf">
-            <i data-lucide="download"></i> Export PDF
-          </button>
-          <button class="btn btn-secondary btn-sm" id="btn-quick-export-excel">
-            <i data-lucide="table"></i> Export Excel
-          </button>
-          <button class="btn btn-secondary btn-sm" id="btn-quick-export-pptx">
-            <i data-lucide="presentation"></i> PPT
-          </button>
-        </div>
-      </header>
-
-      <!-- GLOBAL FILTER TOOLBAR -->
-      <section class="filter-toolbar">
-        <div class="filter-chip-group">
-          <span class="filter-label">Owner:</span>
-          <select id="filter-owner" class="filter-input">
+        <div class="top-filters">
+          <select id="filter-owner" class="filter-input" title="Filter by owner">
             <option value="">All Employees</option>
           </select>
-        </div>
-
-        <div class="filter-chip-group">
-          <span class="filter-label">Project:</span>
-          <select id="filter-project" class="filter-input">
+          <select id="filter-project" class="filter-input" title="Filter by project">
             <option value="">All Projects</option>
           </select>
-        </div>
-
-        <div class="filter-chip-group">
-          <span class="filter-label">Priority:</span>
-          <select id="filter-priority" class="filter-input">
+          <select id="filter-priority" class="filter-input" title="Filter by priority">
             <option value="">All Priorities</option>
             <option value="High">High</option>
             <option value="Medium">Medium</option>
             <option value="Low">Low</option>
           </select>
-        </div>
-
-        <div class="filter-chip-group">
-          <span class="filter-label">Status:</span>
-          <select id="filter-status" class="filter-input">
+          <select id="filter-status" class="filter-input" title="Filter by status">
             <option value="">All Statuses</option>
             <option value="Completed">Completed</option>
             <option value="In Progress">In Progress</option>
@@ -163,11 +132,7 @@
             <option value="Blocked">Blocked</option>
             <option value="Cancelled">Cancelled</option>
           </select>
-        </div>
-
-        <div class="filter-chip-group">
-          <span class="filter-label">RAG:</span>
-          <select id="filter-rag" class="filter-input">
+          <select id="filter-rag" class="filter-input" title="Filter by RAG">
             <option value="">All RAG</option>
             <option value="GREEN">GREEN</option>
             <option value="AMBER">AMBER</option>
@@ -175,11 +140,23 @@
           </select>
         </div>
 
-        <button class="btn btn-secondary btn-sm" id="btn-reset-filters" style="margin-left: auto;">
-          <i data-lucide="rotate-ccw"></i> Reset Filters
-        </button>
-        <span id="filtered-count-badge" style="font-size: 11.5px; color: var(--text-muted);">Showing 24 tasks</span>
-      </section>
+        <div class="top-right-group">
+          <input type="text" id="global-search-input" class="filter-input" placeholder="Search tasks, owners, projects..." style="width: 190px;">
+          <button class="btn btn-secondary btn-sm btn-icon" id="btn-quick-export-pdf" title="Export PDF">
+            <i data-lucide="download"></i>
+          </button>
+          <button class="btn btn-secondary btn-sm btn-icon" id="btn-quick-export-excel" title="Export Excel">
+            <i data-lucide="table"></i>
+          </button>
+          <button class="btn btn-secondary btn-sm btn-icon" id="btn-quick-export-pptx" title="Export PowerPoint">
+            <i data-lucide="presentation"></i>
+          </button>
+          <button class="btn btn-secondary btn-sm btn-icon" id="btn-reset-filters" title="Reset filters">
+            <i data-lucide="rotate-ccw"></i>
+          </button>
+          <span id="filtered-count-badge" style="font-size: 11.5px; color: var(--text-muted); white-space: nowrap;">Showing 24 tasks</span>
+        </div>
+      </header>
 
       <!-- PAGE BODY (VIEWS) -->
       <div class="page-body">

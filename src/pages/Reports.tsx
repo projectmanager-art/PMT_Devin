@@ -348,7 +348,7 @@ export function Reports() {
                   {healthCounts.Red > 0 && <div className="bg-red" style={{ width: `${healthCounts.Red / healthTotal * 100}%` }} />}
                 </div>
               </div>
-              <div className="space-y-1">
+              <div className="max-h-[calc(100vh-460px)] space-y-1 overflow-y-auto overscroll-contain pr-1">
                 {projects.map((project) => {
                   const projectTasks = tasks.filter((task) => task.projectId === project.id)
                   const blockers = projectTasks.filter((task) => task.status === 'Blocked').length
@@ -380,19 +380,21 @@ export function Reports() {
           {attentionTasks.length === 0 ? (
             <EmptyState title="Nothing urgent" description="No blocked or overdue tasks in the current workspace data." />
           ) : (
-            <div className="space-y-2">
-              {attentionTasks.map((task) => {
-                const project = projects.find((item) => item.id === task.projectId)
-                const isOverdue = task.status !== 'Completed' && !!task.due && task.due < today
-                return (
-                  <Link key={task.id} to={`/tasks/${task.id}`} className="block rounded-lg border border-line p-3 transition hover:border-[#c9cbc5] hover:bg-[#fafaf8]">
-                    <div className="flex items-start justify-between gap-2"><p className="line-clamp-2 text-[11px] font-semibold text-ink">{task.title}</p><div className="flex shrink-0 gap-1">{task.status === 'Blocked' && <Badge tone="red">Blocked</Badge>}{isOverdue && <Badge tone="amber">Overdue</Badge>}</div></div>
-                    <p className="mt-1 text-[9px] text-muted">{project?.name ?? 'Project unavailable'} · {task.assignee || 'Unassigned'}{task.due ? ` · Due ${task.due}` : ''}</p>
-                  </Link>
-                )
-              })}
-              <Button variant="secondary" className="mt-1 w-full" onClick={() => navigate('/tasks')}>View task board</Button>
-            </div>
+            <>
+              <div className="max-h-[calc(100vh-460px)] space-y-2 overflow-y-auto overscroll-contain pr-1">
+                {attentionTasks.map((task) => {
+                  const project = projects.find((item) => item.id === task.projectId)
+                  const isOverdue = task.status !== 'Completed' && !!task.due && task.due < today
+                  return (
+                    <Link key={task.id} to={`/tasks/${task.id}`} className="block rounded-lg border border-line p-3 transition hover:border-[#c9cbc5] hover:bg-[#fafaf8]">
+                      <div className="flex items-start justify-between gap-2"><p className="line-clamp-2 text-[11px] font-semibold text-ink">{task.title}</p><div className="flex shrink-0 gap-1">{task.status === 'Blocked' && <Badge tone="red">Blocked</Badge>}{isOverdue && <Badge tone="amber">Overdue</Badge>}</div></div>
+                      <p className="mt-1 text-[9px] text-muted">{project?.name ?? 'Project unavailable'} · {task.assignee || 'Unassigned'}{task.due ? ` · Due ${task.due}` : ''}</p>
+                    </Link>
+                  )
+                })}
+              </div>
+              <Button variant="secondary" className="mt-2 w-full" onClick={() => navigate('/tasks')}>View task board</Button>
+            </>
           )}
         </Card>
       </div>
