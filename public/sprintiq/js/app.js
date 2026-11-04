@@ -119,8 +119,9 @@ class SprintIQApp {
       }
     } catch (e) {}
 
-    // Clean slate — no bundled demo data; user imports their own sprints.
-    this.sprints = [];
+    // First run — seed the bundled demo sprints so a fresh clone shows
+    // real data; user imports overwrite/replace them.
+    this.sprints = window.SprintIQSampleData?.getSampleSprints() ?? [];
   }
 
   saveCustomSprints() {
